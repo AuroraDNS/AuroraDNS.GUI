@@ -5,20 +5,22 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
         x:Class="AuroraGUI.MainWindow"
-        Background="#C8FFFFFF"
-        BorderThickness="0.2"
+
+        Background="#C9FFFFFF"
+        BorderThickness="0.1"
         BorderBrush="#00655B"
         WindowStartupLocation="CenterScreen"
         mc:Ignorable="d"
         TextElement.Foreground="{DynamicResource MaterialDesignBody}"
         TextElement.FontWeight="Normal"
-        TextElement.FontSize="13"     
+        TextElement.FontSize="13"
 
+        Topmost="True"
         FontFamily="{DynamicResource MaterialDesignFont}"
         Title="Aurora DNS" 
         MaxHeight="200" MaxWidth="300" MinHeight="200" MinWidth="300"
-        Height="200" Width="300" Loaded="Window_Loaded" 
-        WindowStyle="None">
+        Height="200" Width="300" Loaded="Window_Loaded"
+        StateChanged="Window_StateChanged" ResizeMode="NoResize" WindowStyle="None">
 
     <WindowChrome.WindowChrome>
         <WindowChrome 
@@ -50,7 +52,7 @@
                     DockPanel.Dock="Right" HorizontalAlignment="Right" Checked="DnsEnable_Checked" Unchecked="DnsEnable_Unchecked" />
             </DockPanel>
         </materialDesign:ColorZone>
-        <Grid Margin="47,67,47,57" Grid.ColumnSpan="2" Grid.Column="0">
+        <Grid Margin="47,67,47,57" Grid.ColumnSpan="2" Grid.Column="0" Opacity="0.95">
 
             <ToggleButton x:Name="IsSysDns"
                 Style="{StaticResource MaterialDesignFlatPrimaryToggleButton}"
@@ -68,18 +70,18 @@
                 Style="{StaticResource MaterialDesignActionToggleButton}"
                 Height="40"
                 Width="40"
-                ToolTip="局域网 / 广域网"
+                ToolTip="本地 / 局域网"
                 materialDesign:ShadowAssist.ShadowDepth="Depth1"
                 IsChecked="False" HorizontalAlignment="Center" Checked="IsGlobal_Checked" Unchecked="IsGlobal_Unchecked">
                 <ToggleButton.Content>
                     <materialDesign:PackIcon
-                        Kind="Lan"
+                        Kind="ServerNetwork"
                         Height="20"
                         Width="20"/>
                 </ToggleButton.Content>
                 <materialDesign:ToggleButtonAssist.OnContent>
                     <materialDesign:PackIcon
-                        Kind="Web"
+                        Kind="Lan"
                         Height="25"
                         Width="25"/>
                 </materialDesign:ToggleButtonAssist.OnContent>
@@ -103,8 +105,14 @@
             Style="{StaticResource MaterialDesignRaisedDarkButton}"
             Grid.ColumnSpan="2" Grid.Column="0"
             materialDesign:ShadowAssist.ShadowDepth="Depth1"
-            Margin="-10,160,-10,-1" Height="Auto" FontSize="14" FontFamily="Microsoft YaHei UI" FontWeight="Normal">
+            Margin="-10,160,-10,-1" Height="Auto" FontSize="14" FontFamily="Microsoft YaHei UI" FontWeight="Normal" Click="SettingButton_Click">
             设置
         </Button>
+ 
+        <materialDesign:Snackbar Name="Snackbar"
+            Grid.ColumnSpan="2" Grid.Column="0" 
+            MessageQueue="{materialDesign:MessageQueue}" 
+            HorizontalContentAlignment="Center" Opacity="0.95" Background="Black">
+        </materialDesign:Snackbar>
     </Grid>
 </Window>

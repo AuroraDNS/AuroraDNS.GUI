@@ -32,6 +32,18 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
+  <PropertyGroup>
+    <TargetZone>LocalIntranet</TargetZone>
+  </PropertyGroup>
+  <PropertyGroup>
+    <GenerateManifests>false</GenerateManifests>
+  </PropertyGroup>
+  <PropertyGroup>
+    <ApplicationManifest>Properties\app.manifest</ApplicationManifest>
+  </PropertyGroup>
+  <PropertyGroup>
+    <ApplicationIcon>Aurora.ico</ApplicationIcon>
+  </PropertyGroup>
   <ItemGroup>
     <Reference Include="ARSoft.Tools.Net, Version=2.2.9.0, Culture=neutral, PublicKeyToken=1940454cd762ec57, processorArchitecture=MSIL">
       <HintPath>..\packages\ARSoft.Tools.Net.2.2.9\lib\net45\ARSoft.Tools.Net.dll</HintPath>
@@ -47,11 +59,13 @@
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Data" />
+    <Reference Include="System.Drawing" />
     <Reference Include="System.Management" />
     <Reference Include="System.Management.Instrumentation" />
     <Reference Include="System.ValueTuple, Version=4.0.3.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
       <HintPath>..\packages\System.ValueTuple.4.5.0\lib\netstandard1.0\System.ValueTuple.dll</HintPath>
     </Reference>
+    <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Xml" />
     <Reference Include="Microsoft.CSharp" />
     <Reference Include="System.Core" />
@@ -70,14 +84,24 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
-    <Compile Include="DnsSettings.cs" />
-    <Compile Include="MojoUnityJson.cs" />
-    <Compile Include="BackDo.cs" />
-    <Compile Include="QueryResolve.cs" />
-    <Compile Include="SysDnsSet.cs" />
-    <Compile Include="IpTools.cs" />
-    <Compile Include="WindowBlur.cs" />
-    <Compile Include="WindowFx.cs" />
+    <Compile Include="AboutWindow.xaml.cs">
+      <DependentUpon>AboutWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="DnsSvr\DnsSettings.cs" />
+    <Compile Include="SettingsWindow.xaml.cs">
+      <DependentUpon>SettingsWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Tools\MojoUnityJson.cs" />
+    <Compile Include="Tools\MyTools.cs" />
+    <Compile Include="DnsSvr\QueryResolve.cs" />
+    <Compile Include="Tools\SysDnsSet.cs" />
+    <Compile Include="Tools\IpTools.cs" />
+    <Compile Include="Fx\WindowBlur.cs" />
+    <Compile Include="Fx\WindowFx.cs" />
+    <Page Include="AboutWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Include="MainWindow.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
@@ -90,6 +114,10 @@
       <DependentUpon>MainWindow.xaml</DependentUpon>
       <SubType>Code</SubType>
     </Compile>
+    <Page Include="SettingsWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Properties\AssemblyInfo.cs">
@@ -110,13 +138,22 @@
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
     </EmbeddedResource>
     <None Include="packages.config" />
+    <None Include="Properties\app.manifest" />
     <None Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>
       <LastGenOutput>Settings.Designer.cs</LastGenOutput>
     </None>
   </ItemGroup>
   <ItemGroup>
-    <None Include="App.config" />
+    <None Include="App.config">
+      <SubType>Designer</SubType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="Aurora.ico" />
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="aurora.png" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

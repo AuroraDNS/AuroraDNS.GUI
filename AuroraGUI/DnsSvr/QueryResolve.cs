@@ -5,6 +5,8 @@ using System.Threading.Tasks;
 using ARSoft.Tools.Net;
 using ARSoft.Tools.Net.Dns;
 using MojoUnity;
+// ReSharper disable CollectionNeverUpdated.Global
+#pragma warning disable 649
 #pragma warning disable 1998
 
 namespace AuroraGUI
@@ -20,10 +22,10 @@ namespace AuroraGUI
                 return;
 
             IPAddress clientAddress = e.RemoteEndpoint.Address;
-            if (DnsSettings.EDnsPrivacy)
+            if (DnsSettings.EDnsCustomize)
                 clientAddress = DnsSettings.EDnsIp;
             else if (Equals(clientAddress, IPAddress.Loopback) || IpTools.InSameLaNet(clientAddress, MainWindow.LocIPAddr))
-                clientAddress = MainWindow.MyIPAddr;
+                clientAddress = MainWindow.IntIPAddr;
 
             DnsMessage response = query.CreateResponseInstance();
 
@@ -40,7 +42,7 @@ namespace AuroraGUI
 
                         if (DnsSettings.DebugLog)
                         {
-                            BackDo.BgwLog($@"| {DateTime.Now} {clientAddress} : { dnsQuestion.Name}");
+                            MyTools.BgwLog($@"| {DateTime.Now} {clientAddress} : { dnsQuestion.Name}");
                         }
 
                         if (DnsSettings.BlackListEnable && BlackList.Contains(dnsQuestion.Name))
@@ -50,7 +52,7 @@ namespace AuroraGUI
                             response.AnswerRecords.Add(blackRecord);
                             if (DnsSettings.DebugLog)
                             {
-                                BackDo.BgwLog(@"|- BlackList");
+                                MyTools.BgwLog(@"|- BlackList");
                             }
                         }
 
@@ -61,7 +63,7 @@ namespace AuroraGUI
                             response.AnswerRecords.Add(blackRecord);
                             if (DnsSettings.DebugLog)
                             {
-                                BackDo.BgwLog(@"|- WhiteList");
+                                MyTools.BgwLog(@"|- WhiteList");
                             }
                         }
 
@@ -87,7 +89,7 @@ namespace AuroraGUI
                             catch (Exception ex)
                             {
                                 response.ReturnCode = ReturnCode.ServerFailure;
-                                BackDo.BgwLog(@"| " + ex);
+                                MyTools.BgwLog(@"| " + ex);
                             }
                         }
 
