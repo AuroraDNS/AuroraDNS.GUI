@@ -16,6 +16,7 @@ using MessageBox = System.Windows.MessageBox;
 using WinFormMenuItem = System.Windows.Forms.MenuItem;
 using WinFormContextMenu = System.Windows.Forms.ContextMenu;
 using WinFormIcon = System.Drawing.Icon;
+using static System.AppDomain;
 
 // ReSharper disable NotAccessedField.Local
 
@@ -34,17 +35,23 @@ namespace AuroraGUI
         public MainWindow()
         {
             InitializeComponent();
+
+            string setupBasePath = CurrentDomain.SetupInformation.ApplicationBase;
+
             ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
             WindowStyle = WindowStyle.SingleBorderWindow;
 
-            if (File.Exists("config.json"))
-                DnsSettings.ReadConfig("config.json");
+            if (File.Exists($"{setupBasePath}config.json"))
+                DnsSettings.ReadConfig($"{setupBasePath}config.json");
 
-            if (DnsSettings.BlackListEnable && File.Exists("black.list"))
-                DnsSettings.ReadBlackList();
+            if (DnsSettings.BlackListEnable && File.Exists($"{setupBasePath}black.list"))
+                DnsSettings.ReadBlackList($"{setupBasePath}black.list");
 
-            if (DnsSettings.BlackListEnable && File.Exists("white.list"))
-                DnsSettings.ReadWhiteList();
+            if (DnsSettings.WhiteListEnable && File.Exists($"{setupBasePath}white.list"))
+                DnsSettings.ReadWhiteList($"{setupBasePath}white.list");
+
+            if (DnsSettings.WhiteListEnable && File.Exists($"{setupBasePath}rewrite.list"))
+                DnsSettings.ReadWhiteList($"{setupBasePath}rewrite.list");
 
             LocIPAddr = IPAddress.Parse(IpTools.GetLocIp());
             try
@@ -65,11 +72,28 @@ namespace AuroraGUI
             DnsSvrWorker.Disposed += (sender, args) => myDnsServer.Stop();
             
             NotifyIcon = new NotifyIcon(){Text = @"AuroraDNS",Visible = true,
-                Icon = WinFormIcon.ExtractAssociatedIcon(GetType().Assembly.Location) };
+                Icon = Properties.Resources.AuroraWhite};
             WinFormMenuItem showItem = new WinFormMenuItem("最小化 / 恢复", MinimizedNormal);
+            WinFormMenuItem restartItem = new WinFormMenuItem("重启", (sender, args) =>
+            {
+                DnsSvrWorker.Dispose();
+                Process.Start(new ProcessStartInfo {FileName = GetType().Assembly.Location});
+                Environment.Exit(Environment.ExitCode);
+            });
+            WinFormMenuItem notepadLogItem = new WinFormMenuItem("查阅日志", (sender, args) =>
+            {
+                if (File.Exists(
+                    $"{CurrentDomain.SetupInformation.ApplicationBase}Log/{DateTime.Today.Year}{DateTime.Today.Month}{DateTime.Today.Day}.log")
+                )
+                    Process.Start(new ProcessStartInfo("notepad.exe",
+                        $"{CurrentDomain.SetupInformation.ApplicationBase}Log/{DateTime.Today.Year}{DateTime.Today.Month}{DateTime.Today.Day}.log"));
+            });
             WinFormMenuItem abootItem = new WinFormMenuItem("关于", (sender, args) => new AboutWindow().ShowDialog());
+            WinFormMenuItem settingsItem = new WinFormMenuItem("设置", (sender, args) => new SettingsWindow().ShowDialog());
             WinFormMenuItem exitItem = new WinFormMenuItem("退出", (sender, args) => Environment.Exit(Environment.ExitCode));
-            NotifyIcon.ContextMenu = new WinFormContextMenu(new[] {showItem, abootItem, exitItem});
+            NotifyIcon.ContextMenu =
+                new WinFormContextMenu(new[]
+                    {showItem, notepadLogItem, abootItem, settingsItem, restartItem, exitItem});
             NotifyIcon.DoubleClick += MinimizedNormal;
         }
 
@@ -91,6 +115,13 @@ namespace AuroraGUI
                     IsGlobal.IsChecked = true;
 
                 DnsEnable.IsChecked = true;
+
+                if (MyTools.IsNslookupLocDns())
+                    IsSysDns.ToolTip = "已设为系统 DNS";
+
+                if (File.Exists($"{CurrentDomain.SetupInformation.ApplicationBase}config.json"))
+                    WindowState = WindowState.Minimized;
+                
             }
             else
             {
@@ -100,6 +131,7 @@ namespace AuroraGUI
                 DnsEnable.IsEnabled = false;
                 IsEnabled = false;
             }
+
         }
 
         private void IsGlobal_Checked(object sender, RoutedEventArgs e)
@@ -131,10 +163,16 @@ namespace AuroraGUI
                 SysDnsSet.SetDns("127.0.0.1", DnsSettings.SecondDnsIp.ToString());
                 Snackbar.MessageQueue.Enqueue(new TextBlock()
                 {
-                    Text = "主DNS:" + IPAddress.Loopback + 
-                           Environment.NewLine + 
+                    Text = "主DNS:" + IPAddress.Loopback +
+                           Environment.NewLine +
                            "辅DNS:" + DnsSettings.SecondDnsIp
                 });
+
+                if (MyTools.IsNslookupLocDns())
+                    IsSysDns.ToolTip = "已设为系统 DNS";
+                else
+                    IsSysDns.ToolTip = "设为系统 DNS";
+                
             }
             else
             {
@@ -155,6 +193,11 @@ namespace AuroraGUI
             {
                 SysDnsSet.ResetDns();
                 Snackbar.MessageQueue.Enqueue(new TextBlock() { Text = "已将 DNS 重置为自动获取" });
+
+                if (MyTools.IsNslookupLocDns())
+                    IsSysDns.ToolTip = "已设为系统 DNS";
+                else
+                    IsSysDns.ToolTip = "设为系统 DNS";
             }
         }
 
@@ -202,8 +245,11 @@ namespace AuroraGUI
             if (DnsSettings.BlackListEnable && File.Exists("black.list"))
                 DnsSettings.ReadBlackList();
 
-            if (DnsSettings.BlackListEnable && File.Exists("white.list"))
+            if (DnsSettings.WhiteListEnable && File.Exists("white.list"))
                 DnsSettings.ReadWhiteList();
+
+            if (DnsSettings.WhiteListEnable && File.Exists("rewrite.list"))
+                DnsSettings.ReadWhiteList("rewrite.list");
         }
 
         private void RunAsAdmin_OnActionClick(object sender, RoutedEventArgs e)
@@ -251,9 +297,15 @@ namespace AuroraGUI
         private void MinimizedNormal(object sender, EventArgs e)
         {
             if (WindowState == WindowState.Normal)
+            {
                 WindowState = WindowState.Minimized;
+                Hide();
+            }
             else if (WindowState == WindowState.Minimized)
+            {
+                Show();
                 WindowState = WindowState.Normal;
+            }
         }
     }
 }

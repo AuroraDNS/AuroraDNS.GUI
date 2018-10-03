@@ -46,11 +46,15 @@
                 <Separator Grid.Row="3" Style="{StaticResource MaterialDesignSeparator}" />
                 <TextBlock Grid.Row="4" Margin="16,6,0,4"  
                            VerticalAlignment="Center" HorizontalAlignment="Left" 
-                           Style="{StaticResource MaterialDesignBody2TextBlock}" 
-                           MouseLeftButtonUp="RunAsAdmin_MouseLeftButtonUp">
+                           Style="{StaticResource MaterialDesignBody2TextBlock}" >
                     登录时自启动（需要管理员权限运行）
                 </TextBlock>
                 <StackPanel Grid.Row="4" Orientation="Horizontal" Margin="16 0 16 8" HorizontalAlignment="Right">
+                    <Button Name="RunAsAdmin" Click="RunAsAdmin_OnClick" Visibility="Collapsed"
+                        HorizontalAlignment="Right" Style="{StaticResource MaterialDesignToolForegroundButton}" 
+                        Margin="0,-3,5,-13">
+                        <materialDesign:PackIcon Kind="ShieldOutline" ToolTip="以管理员权限运行" />
+                    </Button>
                     <ToggleButton Name="RunWithStart" 
                                   Style="{StaticResource MaterialDesignSwitchToggleButton}"
                                   VerticalAlignment="Center" Margin="0,5,0,-5" Checked="RunWithStart_Checked" Unchecked="RunWithStart_Unchecked" />
@@ -72,7 +76,7 @@
                 <TextBlock Grid.Row="8" Margin="16,5,0,14" 
                            VerticalAlignment="Center" HorizontalAlignment="Left" 
                            Style="{StaticResource MaterialDesignBody2TextBlock}">
-                    白名单
+                    重定向名单
                 </TextBlock>
                 <StackPanel Grid.Row="8" Orientation="Horizontal" Margin="16 0 16 8" HorizontalAlignment="Right">
                     <ToggleButton Name="WhiteList" IsEnabled="False"
@@ -216,6 +220,6 @@
             Margin="25,590,310.2,15.8" Content="导入黑名单" Foreground="#FFCB4B16" />
         <Button Click="WhiteListButton_OnClick"
             Style="{StaticResource MaterialDesignFlatButton}" Height="35" VerticalAlignment="Center"
-            Margin="115,590,245.2,15.8" Content="白名单" Foreground="#FF599A07" />
+            Margin="115,590,213.2,15.8" Content="重定向名单" Foreground="#FF599A07" />
     </Grid>
 </Window>
