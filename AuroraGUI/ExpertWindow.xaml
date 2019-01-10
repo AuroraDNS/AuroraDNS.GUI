@@ -1,0 +1,204 @@
+﻿<Window x:Class="AuroraGUI.ExpertWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes" Opacity="1"
+        Title="Expert Mode" Height="770" Width="450" MaxHeight="900" MaxWidth="450"
+        WindowStartupLocation="CenterScreen" Background="#A0FFFFFF" ResizeMode="CanMinimize">
+    <WindowChrome.WindowChrome>
+        <WindowChrome GlassFrameThickness="-1" />
+    </WindowChrome.WindowChrome>
+    <Grid>
+        <Grid HorizontalAlignment="Center" Height="206" Margin="-23,30,-23.8,0" VerticalAlignment="Top" Width="490" Background="#C0FFFFFF"  Grid.ColumnSpan="3">
+            <materialDesign:PackIcon Opacity="0.7" Kind="FlaskOutline" ToolTip="测速" Height="56" Width="423" Margin="32,17,32,133" HorizontalAlignment="Center" VerticalAlignment="Center" />
+            <Label Grid.Column="0"  Content="Expert Mode" HorizontalAlignment="Center" Margin="-42,78,-45,0" FontSize="24"
+                VerticalAlignment="Top" Width="574" HorizontalContentAlignment="Center" Height="38"/>
+            <Label Grid.Column="0" HorizontalAlignment="Center" Margin="-41,121,-43,0" FontSize="16"
+                VerticalAlignment="Top" Width="574" HorizontalContentAlignment="Center" Height="30" Content="这里是一些不稳定的实验特征和被隐藏的高级设置"/>
+            <Label Grid.Column="0" HorizontalAlignment="Center" Margin="-42,153,-42,0" FontSize="14"
+                VerticalAlignment="Top" Foreground="LightSalmon" Width="574" HorizontalContentAlignment="Center" Height="32" Content="【如果您不知道这是什么，请不要进行任何更改】"/>
+        </Grid>
+        <Label Grid.Column="0" HorizontalAlignment="Center" Margin="0,731,1.2,-21" FontSize="14"
+            VerticalAlignment="Top" Foreground="LightCoral" Width="442" HorizontalContentAlignment="Center" Height="30" Content="【请注意,您的改动可能将导致失去质量保证】" />
+        <materialDesign:Card Name="Card"   materialDesign:ShadowAssist.ShadowDepth="Depth0"
+            Padding="0" Background="#FFFFFF" Opacity="0.6"
+            Margin="5,245,5.2,0" Grid.Column="0" Height="478">
+            <Grid Margin="0,1,0,0">
+                <Grid.Effect>
+                    <BlurEffect Radius="0.1"/>
+                </Grid.Effect>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="30" />
+                    <RowDefinition Height="15" />
+                    <RowDefinition Height="25" />
+                    <RowDefinition Height="15" />
+                    <RowDefinition Height="25" />
+                    <RowDefinition Height="15" />
+                    <RowDefinition Height="25" />
+                    <RowDefinition Height="15" />
+                    <RowDefinition Height="25" />
+                    <RowDefinition Height="15" />
+                    <RowDefinition Height="25" />
+                    <RowDefinition Height="15" />
+                    <RowDefinition Height="25" />
+                    <RowDefinition Height="15" />
+                    <RowDefinition Height="25" />
+                    <RowDefinition Height="15" />
+                    <RowDefinition Height="25" />
+                    <RowDefinition Height="15" />
+                    <RowDefinition Height="25" />
+                    <RowDefinition Height="15" />
+                    <RowDefinition Height="25" />
+                    <RowDefinition Height="15" />
+                    <RowDefinition Height="33" />
+                </Grid.RowDefinitions>
+
+                <TextBlock Grid.Row="0" Margin="16,12,0,2.4" 
+                    VerticalAlignment="Center" HorizontalAlignment="Left"
+                    Style="{StaticResource MaterialDesignBody2TextBlock}"
+                    Foreground="#FF757575" Height="16" Width="104" Grid.ColumnSpan="2"><Run Text="实验性与高级选项"/></TextBlock>
+
+                <Separator Grid.Row="1" Style="{StaticResource MaterialDesignSeparator}" Height="Auto" 
+                           Grid.Column="0" Margin="0,7.6,0.6,6.6"/>
+                <TextBlock Grid.Row="2" Margin="16,5.4,0,2.4" 
+                    VerticalAlignment="Center" HorizontalAlignment="Left" 
+                    Style="{StaticResource MaterialDesignBody2TextBlock}" Grid.Column="0" Height="17" Width="228"><Run Text="导入自定义 DNS over HTTPS 接口列表"/></TextBlock>
+                <StackPanel Grid.Row="2" VerticalAlignment="Center" Orientation="Horizontal" Margin="0,1.4,16.8,8.6" HorizontalAlignment="Right" Width="30" Height="30" Grid.RowSpan="2" >
+                    <Button Click="ReadDoHListButton_OnClick"
+                        HorizontalAlignment="Center" Style="{StaticResource MaterialDesignToolForegroundButton}" 
+                        Margin="0,-8,7,0" Height="Auto">
+                        <materialDesign:PackIcon Kind="FolderOpen" ToolTip="导入" Height="25" Width="21" />
+                    </Button>
+                </StackPanel>
+
+                <Separator Grid.Row="3" Style="{StaticResource MaterialDesignSeparator}" 
+                           Grid.Column="0" Margin="0,1.6,0.6,22.4" Grid.RowSpan="2" Height="Auto" />
+                <TextBlock Grid.Row="4" Grid.Column="0" Margin="16,4.4,0,4.4"  
+                    VerticalAlignment="Center" HorizontalAlignment="Left" 
+                    Style="{StaticResource MaterialDesignBody2TextBlock}" Height="16" Width="178" ><Run Text="导入自定义辅 DNS 服务器列表"/></TextBlock>
+                <StackPanel Grid.Row="4" VerticalAlignment="Center" Orientation="Horizontal" Margin="0,3.4,16.8,6.6" HorizontalAlignment="Right" Width="30" Height="30" Grid.RowSpan="2">
+                    <Button Click="ReadDNSListButton_OnClick"
+                        HorizontalAlignment="Center" Style="{StaticResource MaterialDesignToolForegroundButton}" 
+                        Margin="0,-8,7,0" Height="Auto">
+                        <materialDesign:PackIcon Kind="FolderOpen" ToolTip="导入" Height="24" Width="21" />
+                    </Button>
+                </StackPanel>
+
+                <Separator Grid.Row="5" Style="{StaticResource MaterialDesignSeparator}" 
+                           Grid.Column="0" Margin="0,1.6,0.6,22.4" Grid.RowSpan="2" Height="Auto" />
+                <TextBlock Grid.Row="6" Margin="16,6.4,0,1.4" 
+                    VerticalAlignment="Center" HorizontalAlignment="Left" 
+                    Style="{StaticResource MaterialDesignBody2TextBlock}" Grid.Column="0" Height="17" Width="329">忽略 TLS 证书安全错误 / 允许自签名证书【强烈不建议】</TextBlock>
+                <StackPanel Grid.Row="6" Orientation="Horizontal" Margin="0,0.4,16.8,8.4" HorizontalAlignment="Right" Width="34">
+                    <ToggleButton 
+                        Style="{StaticResource MaterialDesignSwitchToggleButton}"
+                        Margin="0,5,0,-5"  />
+                </StackPanel>
+
+                <Separator Grid.Row="7" Style="{StaticResource MaterialDesignSeparator}" 
+                           Grid.Column="0" Margin="0,1.6,0.6,22.4" Grid.RowSpan="2" Height="Auto"/>
+                <TextBlock Grid.Row="8" Margin="16,6.4,0,2.4" 
+                           VerticalAlignment="Center" HorizontalAlignment="Left" 
+                           Style="{StaticResource MaterialDesignBody2TextBlock}" Grid.Column="0" Height="16" Width="221">极客佐料 (在日志中展示更多技术细节)</TextBlock>
+                <StackPanel Grid.Row="8" Orientation="Horizontal" Margin="0,0.4,16.8,7.4" HorizontalAlignment="Right" Width="34">
+                    <ToggleButton 
+                                  Style="{StaticResource MaterialDesignSwitchToggleButton}"
+                                  Margin="0,5,0,-5"  />
+                </StackPanel>
+                <Separator Grid.Row="9" Style="{StaticResource MaterialDesignSeparator}" 
+                           Grid.Column="0" Margin="0,2.6,0.6,21.4" Grid.RowSpan="2" Height="Auto" />
+
+                <TextBlock Grid.Row="10" Grid.Column="0" Margin="16,6.4,0,2.4" 
+                           VerticalAlignment="Center" HorizontalAlignment="Left" 
+                           Style="{StaticResource MaterialDesignBody2TextBlock}" Height="16" Width="138">导入 PRChina 域名列表</TextBlock>
+                <StackPanel Grid.Row="10" VerticalAlignment="Center" Orientation="Horizontal" Margin="0,3.4,16.8,6.6" HorizontalAlignment="Right" Width="30" Height="30" Grid.RowSpan="2">
+                    <Button 
+                        HorizontalAlignment="Center" Style="{StaticResource MaterialDesignToolForegroundButton}" 
+                        Margin="0,-8,7,0" Height="Auto" Click="ReadChinaListButton_OnClick">
+                        <materialDesign:PackIcon Kind="FolderOpen" ToolTip="导入" Height="24" Width="21" />
+                    </Button>
+                </StackPanel>
+
+                <Separator Grid.Row="11" Style="{StaticResource MaterialDesignSeparator}" 
+                           Grid.Column="0" Margin="0,1.6,0.6,22.4" Grid.RowSpan="2" Height="Auto"/>
+                <TextBlock Grid.Row="12" Margin="16,5.4,0,2.4" 
+                    VerticalAlignment="Center" HorizontalAlignment="Left" 
+                    Style="{StaticResource MaterialDesignBody2TextBlock}"  Grid.Column="0" Height="17" Width="325"><Run Text="PRChina 名单【将使用 DNSPOD D+ HTTPDNS 解析】"/></TextBlock>
+                <StackPanel Grid.Row="12" Orientation="Horizontal" Margin="0,0.4,16.8,8.4" HorizontalAlignment="Right" Width="34">
+                    <ToggleButton 
+                                  Style="{StaticResource MaterialDesignSwitchToggleButton}"
+                                  Margin="0,5,0,-5"  />
+                </StackPanel>
+
+                <Separator Grid.Row="13" Style="{StaticResource MaterialDesignSeparator}" 
+                           Grid.Column="0" Margin="0,1.6,0.6,22.4" Grid.RowSpan="2" Height="Auto"/>
+                <TextBlock Grid.Row="14" Grid.Column="0" Margin="16,6.4,0,2.4" 
+                           VerticalAlignment="Center" HorizontalAlignment="Left" 
+                           Style="{StaticResource MaterialDesignBody2TextBlock}" Height="16" Width="184" ><Run Text="向我展示 HTTP 响应状态码异常"/></TextBlock>
+                <StackPanel Grid.Row="14" Orientation="Horizontal" Margin="0,0.4,16.8,7.4" HorizontalAlignment="Right" Width="34">
+                    <ToggleButton 
+                                  Style="{StaticResource MaterialDesignSwitchToggleButton}" Margin="0,5,0,-5"
+                    />
+                </StackPanel>
+
+                <Separator Grid.Row="15" Style="{StaticResource MaterialDesignSeparator}"
+                           Grid.Column="0" Margin="0,2.6,0.6,21.4" Grid.RowSpan="2" Height="Auto"  />
+                <TextBlock Grid.Row="16" Grid.Column="0" Margin="16,7.4,0,1.4" 
+                           VerticalAlignment="Center" HorizontalAlignment="Left" 
+                           Style="{StaticResource MaterialDesignBody2TextBlock}" Height="16" Width="117" ><Run Text="拒绝响应重定向请求"/></TextBlock>
+                <StackPanel Grid.Row="16" Orientation="Horizontal" Margin="0,0.4,16.8,8.4" HorizontalAlignment="Right" Width="34">
+                    <ToggleButton 
+                        Style="{StaticResource MaterialDesignSwitchToggleButton}" Margin="0,5,0,-5"
+                    />
+                </StackPanel>
+
+                <Separator Grid.Row="17" Style="{StaticResource MaterialDesignSeparator}" 
+                           Grid.Column="0" Margin="0,2.6,0.6,21.4" Grid.RowSpan="2" Height="Auto" />
+                <TextBlock Grid.Row="18" Grid.Column="0" Margin="16,6.4,0,1.4" 
+                           VerticalAlignment="Center" HorizontalAlignment="Left" 
+                           Style="{StaticResource MaterialDesignBody2TextBlock}" Height="17" Width="238"><Run Text="仅IPv4 (不解析AAAA记录, 与仅IPv6互斥)"/></TextBlock>
+                <StackPanel Grid.Row="18" Orientation="Horizontal" Margin="0,0.4,16.8,8.4" HorizontalAlignment="Right" Width="34">
+                    <ToggleButton 
+                        Style="{StaticResource MaterialDesignSwitchToggleButton}" Margin="0,5,0,-5"
+                    />
+                </StackPanel>
+                <Separator Grid.Row="19" Style="{StaticResource MaterialDesignSeparator}"
+                           Grid.Column="0" Margin="0,2.6,0.6,21.4" Grid.RowSpan="2" Height="Auto" />
+                <TextBlock Grid.Row="20" Grid.Column="0" Margin="16,7.4,0,14.6" 
+                           VerticalAlignment="Center" HorizontalAlignment="Left" 
+                           Style="{StaticResource MaterialDesignBody2TextBlock}" Height="18" Width="213" Grid.RowSpan="2"><Run Text="仅IPv6 (不解析A记录, 与仅IPv4互斥)"/></TextBlock>
+                <StackPanel Grid.Row="20" Orientation="Horizontal" Margin="0,0.4,16.8,8.4" HorizontalAlignment="Right" Width="34">
+                    <ToggleButton 
+                        Style="{StaticResource MaterialDesignSwitchToggleButton}" Margin="0,5,0,-5"
+                    />
+                </StackPanel>
+
+                <Separator Grid.Row="21" Style="{StaticResource MaterialDesignSeparator}"
+                           Grid.Column="0" Margin="0,1.6,0.6,30.4" Grid.RowSpan="2" Height="Auto" />
+                <TextBlock Grid.Row="22" Grid.Column="0" Margin="16,5.4,0,11.4" 
+                           VerticalAlignment="Center" HorizontalAlignment="Left" 
+                           Style="{StaticResource MaterialDesignBody2TextBlock}" Height="16" Width="94" >
+                    自定义 TLS 版本
+                </TextBlock>
+                <StackPanel Grid.Row="22" Orientation="Horizontal" Margin="0,0.4,16.8,7.4" HorizontalAlignment="Right" Width="154">
+                    <ToggleButton IsChecked="False"
+                                  Style="{StaticResource MaterialDesignSwitchToggleButton}"
+                                  VerticalAlignment="Center" Margin="5,2,5,-2" />
+                    <ComboBox Name="TLSVer" IsEditable="False"
+                              Height="30" Margin="0,-5,0,-8.2" VerticalAlignment="Top" Width="110" />
+                </StackPanel>
+            </Grid>
+        </materialDesign:Card>
+        <materialDesign:Snackbar x:Name="Snackbar"
+            IsActive="False" VerticalAlignment="Center" VerticalContentAlignment="Center"
+            HorizontalContentAlignment="Center" Opacity="0.75" Background="Black" Width="380"
+                                 Grid.Column="0">
+            <materialDesign:SnackbarMessage
+                    Content="请注意,这可能导致失去质量保证！" Foreground="LightCoral"
+                    ActionContent="我明白了" ActionClick="SnackbarMessage_OnActionClick"
+                />
+        </materialDesign:Snackbar>
+
+    </Grid>
+</Window>

@@ -6,7 +6,7 @@
         xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
         x:Class="AuroraGUI.MainWindow"
 
-        Background="#C9FFFFFF"
+        Background="#E0FFFFFF"
         BorderThickness="0.1"
         BorderBrush="#00655B"
         WindowStartupLocation="CenterScreen"
@@ -27,7 +27,7 @@
             GlassFrameThickness="1"/>
     </WindowChrome.WindowChrome>
 
-    <Grid Opacity="0.8">
+    <Grid Opacity="0.85">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="147*"/>
             <ColumnDefinition Width="146*"/>
@@ -39,10 +39,9 @@
             <DockPanel>
                 <TextBlock
                     VerticalAlignment="Center" HorizontalAlignment="Center" 
-                    FontSize="18" FontWeight="Bold"
-                    FontFamily="Microsoft YaHei UI"
-                    DockPanel.Dock="Left">
-                    AURORA DNS
+                    FontSize="20" FontWeight="Medium"
+                    DockPanel.Dock="Left" Margin="0,0,0,-0.8" >
+                    <Italic>A</Italic>uroraDNS
                 </TextBlock>
 
                 <ToggleButton x:Name="DnsEnable"
@@ -110,7 +109,7 @@
         </Button>
  
         <materialDesign:Snackbar Name="Snackbar"
-            Grid.ColumnSpan="2" Grid.Column="0" 
+            Grid.ColumnSpan="2" Grid.Column="0"
             MessageQueue="{materialDesign:MessageQueue}" 
             HorizontalContentAlignment="Center" Opacity="0.95" Background="Black">
         </materialDesign:Snackbar>

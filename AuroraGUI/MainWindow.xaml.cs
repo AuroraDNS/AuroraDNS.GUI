@@ -4,18 +4,18 @@ using System.Diagnostics;
 using System.IO;
 using System.Net;
 using System.Security.Principal;
-using System.Threading;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Forms;
 using System.Windows.Media.Animation;
 using System.Windows.Threading;
 using ARSoft.Tools.Net.Dns;
+using AuroraGUI.DnsSvr;
+using AuroraGUI.Fx;
+using AuroraGUI.Tools;
 using MaterialDesignThemes.Wpf;
-using MessageBox = System.Windows.MessageBox;
 using WinFormMenuItem = System.Windows.Forms.MenuItem;
 using WinFormContextMenu = System.Windows.Forms.ContextMenu;
-using WinFormIcon = System.Drawing.Icon;
 using static System.AppDomain;
 
 // ReSharper disable NotAccessedField.Local
@@ -27,6 +27,7 @@ namespace AuroraGUI
     /// </summary>
     public partial class MainWindow
     {
+        public static string SetupBasePath = CurrentDomain.SetupInformation.ApplicationBase;
         public static IPAddress IntIPAddr;
         public static IPAddress LocIPAddr;
         private static NotifyIcon NotifyIcon;
@@ -36,35 +37,45 @@ namespace AuroraGUI
         {
             InitializeComponent();
 
-            string setupBasePath = CurrentDomain.SetupInformation.ApplicationBase;
-
-            ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
             WindowStyle = WindowStyle.SingleBorderWindow;
 
-            if (File.Exists($"{setupBasePath}config.json"))
-                DnsSettings.ReadConfig($"{setupBasePath}config.json");
+            if (File.Exists($"{SetupBasePath}config.json"))
+                DnsSettings.ReadConfig($"{SetupBasePath}config.json");
 
-            if (DnsSettings.BlackListEnable && File.Exists($"{setupBasePath}black.list"))
-                DnsSettings.ReadBlackList($"{setupBasePath}black.list");
+            if (DnsSettings.BlackListEnable && File.Exists($"{SetupBasePath}black.list"))
+                DnsSettings.ReadBlackList($"{SetupBasePath}black.list");
 
-            if (DnsSettings.WhiteListEnable && File.Exists($"{setupBasePath}white.list"))
-                DnsSettings.ReadWhiteList($"{setupBasePath}white.list");
+            if (DnsSettings.WhiteListEnable && File.Exists($"{SetupBasePath}white.list"))
+                DnsSettings.ReadWhiteList($"{SetupBasePath}white.list");
 
-            if (DnsSettings.WhiteListEnable && File.Exists($"{setupBasePath}rewrite.list"))
-                DnsSettings.ReadWhiteList($"{setupBasePath}rewrite.list");
+            if (DnsSettings.WhiteListEnable && File.Exists($"{SetupBasePath}rewrite.list"))
+                DnsSettings.ReadWhiteList($"{SetupBasePath}rewrite.list");
+
+            ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
+            #pragma warning disable CS0162 //未实装
+            if (false)
+                ServicePointManager.ServerCertificateValidationCallback +=
+                    (sender, cert, chain, sslPolicyErrors) => true;
+
+            switch (1.2F)
+            {
+                case 1:
+                    ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls;
+                    break;
+                case 1.1F:
+                    ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls11;
+                    break;
+                case 1.2F:
+                    ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
+                    break;
+                default:
+                    ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
+                    break;
+            }
+            #pragma warning restore CS0162
 
             LocIPAddr = IPAddress.Parse(IpTools.GetLocIp());
-            try
-            {
-                IntIPAddr = IPAddress.Parse(Thread.CurrentThread.CurrentCulture.Name == "zh-CN"
-                    ? new WebClient().DownloadString("http://members.3322.org/dyndns/getip").Trim()
-                    : new WebClient().DownloadString("https://api.ipify.org").Trim());
-            }
-            catch(Exception ex)
-            {
-                MessageBox.Show("Error: 尝试获取公网IP地址失败 \n\rOriginal error: " + ex.Message);
-                IntIPAddr = IPAddress.Any;
-            }
+            IntIPAddr = IPAddress.Parse(IpTools.GetIntIp());
 
             DnsServer myDnsServer = new DnsServer(DnsSettings.ListenIp, 10, 10);
             myDnsServer.QueryReceived += QueryResolve.ServerOnQueryReceived;
@@ -74,7 +85,7 @@ namespace AuroraGUI
             NotifyIcon = new NotifyIcon(){Text = @"AuroraDNS",Visible = true,
                 Icon = Properties.Resources.AuroraWhite};
             WinFormMenuItem showItem = new WinFormMenuItem("最小化 / 恢复", MinimizedNormal);
-            WinFormMenuItem restartItem = new WinFormMenuItem("重启", (sender, args) =>
+            WinFormMenuItem restartItem = new WinFormMenuItem("重新启动", (sender, args) =>
             {
                 DnsSvrWorker.Dispose();
                 Process.Start(new ProcessStartInfo {FileName = GetType().Assembly.Location});
@@ -83,18 +94,26 @@ namespace AuroraGUI
             WinFormMenuItem notepadLogItem = new WinFormMenuItem("查阅日志", (sender, args) =>
             {
                 if (File.Exists(
-                    $"{CurrentDomain.SetupInformation.ApplicationBase}Log/{DateTime.Today.Year}{DateTime.Today.Month}{DateTime.Today.Day}.log")
+                    $"{SetupBasePath}Log/{DateTime.Today.Year}{DateTime.Today.Month}{DateTime.Today.Day}.log")
                 )
                     Process.Start(new ProcessStartInfo("notepad.exe",
-                        $"{CurrentDomain.SetupInformation.ApplicationBase}Log/{DateTime.Today.Year}{DateTime.Today.Month}{DateTime.Today.Day}.log"));
+                        $"{SetupBasePath}Log/{DateTime.Today.Year}{DateTime.Today.Month}{DateTime.Today.Day}.log"));
             });
-            WinFormMenuItem abootItem = new WinFormMenuItem("关于", (sender, args) => new AboutWindow().ShowDialog());
-            WinFormMenuItem settingsItem = new WinFormMenuItem("设置", (sender, args) => new SettingsWindow().ShowDialog());
+            WinFormMenuItem abootItem = new WinFormMenuItem("关于…", (sender, args) => new AboutWindow().ShowDialog());
+            WinFormMenuItem updateItem = new WinFormMenuItem("检查更新…", (sender, args) => MyTools.CheckUpdate(GetType().Assembly.Location));
+            WinFormMenuItem settingsItem = new WinFormMenuItem("设置…", (sender, args) => new SettingsWindow().ShowDialog());
             WinFormMenuItem exitItem = new WinFormMenuItem("退出", (sender, args) => Environment.Exit(Environment.ExitCode));
+
             NotifyIcon.ContextMenu =
                 new WinFormContextMenu(new[]
-                    {showItem, notepadLogItem, abootItem, settingsItem, restartItem, exitItem});
+                {
+                    showItem, notepadLogItem, new WinFormMenuItem("-"), abootItem, updateItem, settingsItem, new WinFormMenuItem("-"), restartItem, exitItem
+                });
+
             NotifyIcon.DoubleClick += MinimizedNormal;
+
+            if (MyTools.IsNslookupLocDns())
+                IsSysDns.ToolTip = "已设为系统 DNS";
         }
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
@@ -102,8 +121,8 @@ namespace AuroraGUI
             Visibility = Visibility.Hidden;
             WindowBlur.SetEnabled(this, true);
             var desktopWorkingArea = SystemParameters.WorkArea;
-            Left = desktopWorkingArea.Right - Width - 5;
-            Top = desktopWorkingArea.Bottom - Height - 5;
+            Left = desktopWorkingArea.Right - Width - 1;
+            Top = desktopWorkingArea.Bottom - Height - 0;
 
             FadeIn(0.50);
             Visibility = Visibility.Visible;
@@ -116,20 +135,26 @@ namespace AuroraGUI
 
                 DnsEnable.IsChecked = true;
 
-                if (MyTools.IsNslookupLocDns())
-                    IsSysDns.ToolTip = "已设为系统 DNS";
-
-                if (File.Exists($"{CurrentDomain.SetupInformation.ApplicationBase}config.json"))
+                if (File.Exists($"{SetupBasePath}config.json"))
                     WindowState = WindowState.Minimized;
-                
             }
             else
             {
                 Snackbar.IsActive = true;
-                Snackbar.Message = new SnackbarMessage(){Content = "DNS 服务器无法启动:端口被占用" };
-                NotifyIcon.Text = @"AuroraDNS - [端口被占用]";
+                if (Process.GetProcessesByName(System.Windows.Forms.Application.CompanyName).Length > 1)
+                {
+                    Snackbar.Message = new SnackbarMessage() {Content = "DNS 服务器无法启动:端口被占用"};
+                    NotifyIcon.Text = @"AuroraDNS - [端口被占用]";
+                }
+                else
+                {
+                    Snackbar.Message = new SnackbarMessage() { Content = "DNS 服务器无法启动:可能已有一个实例正在运行, 请不要重复启动" };
+                    NotifyIcon.Text = @"AuroraDNS - [请不要重复启动]";
+                }
+
                 DnsEnable.IsEnabled = false;
                 IsEnabled = false;
+
             }
 
         }
@@ -167,12 +192,7 @@ namespace AuroraGUI
                            Environment.NewLine +
                            "辅DNS:" + DnsSettings.SecondDnsIp
                 });
-
-                if (MyTools.IsNslookupLocDns())
-                    IsSysDns.ToolTip = "已设为系统 DNS";
-                else
-                    IsSysDns.ToolTip = "设为系统 DNS";
-                
+                IsSysDns.ToolTip = "已设为系统 DNS";
             }
             else
             {
@@ -193,11 +213,7 @@ namespace AuroraGUI
             {
                 SysDnsSet.ResetDns();
                 Snackbar.MessageQueue.Enqueue(new TextBlock() { Text = "已将 DNS 重置为自动获取" });
-
-                if (MyTools.IsNslookupLocDns())
-                    IsSysDns.ToolTip = "已设为系统 DNS";
-                else
-                    IsSysDns.ToolTip = "设为系统 DNS";
+                IsSysDns.ToolTip = "设为系统 DNS";
             }
         }
 
