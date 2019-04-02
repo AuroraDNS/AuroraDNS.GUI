@@ -8,14 +8,14 @@
         mc:Ignorable="d"
         Background="#FAFAFA"
 
-        Title="测速" Height="480" Width="600" WindowStartupLocation="CenterScreen"
+        Title="测速" Height="480" Width="750" WindowStartupLocation="CenterScreen"
         MinWidth="550" MinHeight="370" ResizeMode="CanMinimize" Loaded="Window_Loaded">
-    <Grid>
+    <Grid Name="Grid">
         <materialDesign:Card materialDesign:ShadowAssist.ShadowDepth="Depth1"
             Padding="0"
             Margin="12,10,12,0">
             <Grid>
-                <ListView
+                <ListView GridViewColumnHeader.Click="SpeedListView_OnClick"
                     ItemsSource="{Binding MyItems}" Height="385" Name="SpeedListView" Grid.ColumnSpan="2">
                     <ListView.View>
                         <GridView>
@@ -23,21 +23,25 @@
                                 DisplayMemberBinding="{Binding Server}"
                                 Header="地址" Width="160" />
                             <GridViewColumn
+                                DisplayMemberBinding="{Binding Name}"
+                                Header="名称" Width="150" />
+                            <GridViewColumn
                                 DisplayMemberBinding="{Binding Asn}"
-                                Header="位址 / ASN" Width="300" />
+                                Header="位址 / ASN" Width="280" />
                             <GridViewColumn
                                 DisplayMemberBinding="{Binding DelayTime}"
-                                Header="延迟" Width="60" />
+                                Header="延迟(ms)" Width="85" />
                         </GridView>
                     </ListView.View>
                 </ListView>
             </Grid>
         </materialDesign:Card>
 
-        <Button
+        <Button Name="StratButton"
             Style="{StaticResource MaterialDesignRaisedDarkButton}"
             materialDesign:ShadowAssist.ShadowDepth="Depth1"
             Margin="-3,0,-3,-1" VerticalAlignment="Bottom" Height="40" FontSize="14" FontFamily="Microsoft YaHei UI" FontWeight="Normal" Content="开始测试" Click="Button_Click"/>
+        <ProgressBar Name="ProgressBar" VerticalAlignment="Top"/>
 
     </Grid>
 </Window>

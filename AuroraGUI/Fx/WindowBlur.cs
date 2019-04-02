@@ -2,7 +2,7 @@
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Interop;
-using AuroraGUI.Fx.Native;
+using AuroraGUI.Fx.NativeArgs;
 
 namespace AuroraGUI.Fx
 {
@@ -137,7 +137,7 @@ namespace AuroraGUI.Fx
             internal static extern int SetWindowCompositionAttribute(IntPtr hwnd, ref WindowCompositionAttributeData data);
         }
 
-    namespace Native
+    namespace NativeArgs
     {
         internal enum AccentState
         {
@@ -171,4 +171,3 @@ namespace AuroraGUI.Fx
         }
     }
 }
-

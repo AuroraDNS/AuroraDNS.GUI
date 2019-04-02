@@ -9,6 +9,7 @@ using System.Security.Principal;
 using System.Windows;
 using System.Windows.Controls;
 using AuroraGUI.DnsSvr;
+using AuroraGUI.Forms;
 using AuroraGUI.Tools;
 using Microsoft.Win32;
 
@@ -32,7 +33,8 @@ namespace AuroraGUI
             Proxy.IsChecked = DnsSettings.ProxyEnable;
 
             DoHUrlText.Text = DnsSettings.HttpsDnsUrl;
-            BackupDNS.Text =  DnsSettings.SecondDnsIp.ToString();
+            SecondDoHUrlText.Text = DnsSettings.SecondHttpsDnsUrl;
+            SecondDNS.Text =  DnsSettings.SecondDnsIp.ToString();
             EDNSClientIP.Text = DnsSettings.EDnsIp.ToString();
             ListenIP.Text = DnsSettings.ListenIp.ToString();
 
@@ -49,15 +51,10 @@ namespace AuroraGUI
             if (File.Exists($"{MainWindow.SetupBasePath}white.list"))
                 WhiteList.IsEnabled = true;
 
-            if (File.Exists($"{MainWindow.SetupBasePath}doh.list"))
-                foreach (var item in File.ReadAllLines($"{MainWindow.SetupBasePath}doh.list"))
-                    DoHUrlText.Items.Add(item);
-            if (File.Exists($"{MainWindow.SetupBasePath}dns.list"))
-                foreach (var item in File.ReadAllLines($"{MainWindow.SetupBasePath}dns.list"))
-                    BackupDNS.Items.Add(item);
-
             if (!new WindowsPrincipal(WindowsIdentity.GetCurrent()).IsInRole(WindowsBuiltInRole.Administrator))
                 RunAsAdmin.Visibility = Visibility.Visible;
+            if (File.Exists($"{MainWindow.SetupBasePath}url.json"))
+                L10N.Visibility = Visibility.Visible;
         }
 
         private void Proxy_OnChecked(object sender, RoutedEventArgs e)
@@ -81,12 +78,14 @@ namespace AuroraGUI
             DnsSettings.ProxyEnable = Convert.ToBoolean(Proxy.IsChecked);
 
             if (!string.IsNullOrWhiteSpace(DoHUrlText.Text) &&
-                !string.IsNullOrWhiteSpace(BackupDNS.Text) &&
+                !string.IsNullOrWhiteSpace(SecondDoHUrlText.Text) &&
+                !string.IsNullOrWhiteSpace(SecondDNS.Text) &&
                 !string.IsNullOrWhiteSpace(EDNSClientIP.Text) &&
                 !string.IsNullOrWhiteSpace(ListenIP.Text))
             {
                 DnsSettings.HttpsDnsUrl = DoHUrlText.Text.Trim();
-                DnsSettings.SecondDnsIp = IPAddress.Parse(BackupDNS.Text);
+                DnsSettings.SecondHttpsDnsUrl = SecondDoHUrlText.Text.Trim();
+                DnsSettings.SecondDnsIp = IPAddress.Parse(SecondDNS.Text);
                 DnsSettings.EDnsIp = IPAddress.Parse(EDNSClientIP.Text);
                 DnsSettings.ListenIp = IPAddress.Parse(ListenIP.Text);
 
@@ -96,23 +95,24 @@ namespace AuroraGUI
                     DnsSettings.WProxy = new WebProxy("127.0.0.1:80");
 
                 File.WriteAllText($"{MainWindow.SetupBasePath}config.json",
-                    "{\n  " +
-                    $"\"Listen\" : \"{DnsSettings.ListenIp}\",\n  " +
-                    $"\"SecondDns\" : \"{DnsSettings.SecondDnsIp}\",\n  " +
-                    $"\"BlackList\" : {DnsSettings.BlackListEnable.ToString().ToLower()},\n  " +
-                    $"\"RewriteList\" : {DnsSettings.WhiteListEnable.ToString().ToLower()},\n  " +
-                    $"\"DebugLog\" : {DnsSettings.DebugLog.ToString().ToLower()},\n  " +
-                    $"\"EDnsCustomize\" : {DnsSettings.EDnsCustomize.ToString().ToLower()},\n  " +
-                    $"\"EDnsClientIp\" : \"{DnsSettings.EDnsIp}\",\n  " +
-                    $"\"ProxyEnable\" : {DnsSettings.ProxyEnable.ToString().ToLower()},\n  " +
-                    $"\"HttpsDns\" : \"{DnsSettings.HttpsDnsUrl.Trim()}\",\n  " +
-                    $"\"Proxy\" : \"{ProxyServer.Text + ":" + ProxyServerPort.Text}\" \n" +
+                    "{\n" +
+                    $"\"Listen\" : \"{DnsSettings.ListenIp}\",\n" +
+                    $"\"SecondDns\" : \"{DnsSettings.SecondDnsIp}\",\n" +
+                    $"\"BlackList\" : {DnsSettings.BlackListEnable.ToString().ToLower()},\n" +
+                    $"\"RewriteList\" : {DnsSettings.WhiteListEnable.ToString().ToLower()},\n" +
+                    $"\"DebugLog\" : {DnsSettings.DebugLog.ToString().ToLower()},\n" +
+                    $"\"EDnsCustomize\" : {DnsSettings.EDnsCustomize.ToString().ToLower()},\n" +
+                    $"\"EDnsClientIp\" : \"{DnsSettings.EDnsIp}\",\n" +
+                    $"\"ProxyEnable\" : {DnsSettings.ProxyEnable.ToString().ToLower()},\n" +
+                    $"\"HttpsDns\" : \"{DnsSettings.HttpsDnsUrl.Trim()}\",\n" +
+                    $"\"SecondHttpsDns\" : \"{DnsSettings.SecondHttpsDnsUrl}\",\n" +
+                    $"\"Proxy\" : \"{ProxyServer.Text + ":" + ProxyServerPort.Text}\",\n" +
+                    $"\"EnableDnsMessage\" : {DnsSettings.ViaDnsMsg.ToString().ToLower()} \n" +
                     "}");
                 Snackbar.MessageQueue.Enqueue(new TextBlock() { Text = @"设置已保存!" });
             }
             else
-                Snackbar.MessageQueue.Enqueue(new TextBlock() { Text = @"不应为空,请填写完全。" });
-            
+                Snackbar.MessageQueue.Enqueue(new TextBlock() { Text = @"不应为空,请填写完全。" }); 
         }
 
         private void BlackListButton_OnClick(object sender, RoutedEventArgs e)
@@ -137,7 +137,7 @@ namespace AuroraGUI
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show("Error: 无法写入文件 \n\rOriginal error: " + ex.Message);
+                    MessageBox.Show($"Error: 无法写入文件 {Environment.NewLine}Original error: " + ex.Message);
                 }
             }
 
@@ -167,7 +167,7 @@ namespace AuroraGUI
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show("Error: 无法写入文件 \n\rOriginal error: " + ex.Message);
+                    MessageBox.Show($"Error: 无法写入文件 {Environment.NewLine}Original error: " + ex.Message);
                 }
             }
 
@@ -184,11 +184,9 @@ namespace AuroraGUI
                 try
                 {
                     dohListStrings = new WebClient()
-                        .DownloadString("https://cdn.jsdelivr.net/gh/AuroraDNS/AuroraDNS.github.io/DoH.list")
-                        .Split('\n').ToList();
+                        .DownloadString(UrlSettings.MDohList).Split('\n').ToList();
                     dnsListStrings = new WebClient()
-                        .DownloadString("https://cdn.jsdelivr.net/gh/AuroraDNS/AuroraDNS.github.io/DNS.list")
-                        .Split('\n').ToList();
+                        .DownloadString(UrlSettings.MDnsList).Split('\n').ToList();
                 }
                 catch (Exception exception)
                 {
@@ -202,10 +200,26 @@ namespace AuroraGUI
             };
             bgWorker.RunWorkerCompleted += (o, args) =>
             {
-                foreach (var item in dohListStrings)
-                    DoHUrlText.Items.Add(item);
-                foreach (var item in dnsListStrings)
-                    BackupDNS.Items.Add(item);
+                if (UrlSettings.MDohList.Contains(".list"))
+                    foreach (var item in dohListStrings)
+                    {
+                        DoHUrlText.Items.Add(item.Split('*', ',')[0].Trim());
+                        SecondDoHUrlText.Items.Add(item.Split('*', ',')[0].Trim());
+                    }
+                if (UrlSettings.MDnsList.Contains(".list"))
+                    foreach (var item in dnsListStrings)
+                        SecondDNS.Items.Add(item.Split('*', ',')[0].Trim());
+
+                if (File.Exists($"{MainWindow.SetupBasePath}doh.list"))
+                    foreach (var item in File.ReadAllLines($"{MainWindow.SetupBasePath}doh.list"))
+                    {
+                        DoHUrlText.Items.Add(item.Split('*', ',')[0].Trim());
+                        SecondDoHUrlText.Items.Add(item.Split('*', ',')[0].Trim());
+                    }
+
+                if (File.Exists($"{MainWindow.SetupBasePath}dns.list"))
+                    foreach (var item in File.ReadAllLines($"{MainWindow.SetupBasePath}dns.list"))
+                        SecondDNS.Items.Add(item.Split('*', ',')[0].Trim());
             };
             bgWorker.RunWorkerAsync();
         }
@@ -249,7 +263,18 @@ namespace AuroraGUI
             if (File.Exists($"{MainWindow.SetupBasePath}expert.json"))
                 new ExpertWindow().Show();
             else
-                MessageBox.Show("没有找到 expert.json 配置文件。");
+                Snackbar.MessageQueue.Enqueue(new TextBlock() { Text = @"没有找到 expert.json 配置文件。" });
+        }
+
+        private void CleanCache_OnClick(object sender, RoutedEventArgs e)
+        {
+            new Process {StartInfo = new ProcessStartInfo("ipconfig.exe", "/flushdns") }.Start();
+            Snackbar.MessageQueue.Enqueue(new TextBlock() { Text = @"已刷新系统 DNS 解析缓存" });
+        }
+
+        private void ListL10N_OnClick(object sender, RoutedEventArgs e)
+        {
+            new ListL10NWindow().Show();
         }
     }
 }

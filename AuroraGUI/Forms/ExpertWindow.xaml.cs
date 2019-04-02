@@ -18,7 +18,7 @@ namespace AuroraGUI
             InitializeComponent();
             WindowBlur.SetEnabled(this, true);
             Snackbar.IsActive = true;
-            Card.Effect = new BlurEffect() { Radius = 10 , RenderingBias = RenderingBias.Quality };
+            Card.Effect = new BlurEffect() { Radius = 10 , RenderingBias = RenderingBias.Performance };
         }
 
         private void SnackbarMessage_OnActionClick(object sender, RoutedEventArgs e)
@@ -50,7 +50,7 @@ namespace AuroraGUI
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show("Error: 无法写入文件 \n\rOriginal error: " + ex.Message);
+                    MessageBox.Show($"Error: 无法写入文件 {Environment.NewLine}Original error: " + ex.Message);
                 }
             }
         }
@@ -77,7 +77,7 @@ namespace AuroraGUI
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show("Error: 无法写入文件 \n\rOriginal error: " + ex.Message);
+                    MessageBox.Show($"Error: 无法写入文件 {Environment.NewLine}Original error: " + ex.Message);
                 }
             }
         }
@@ -104,14 +104,9 @@ namespace AuroraGUI
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show("Error: 无法写入文件 \n\rOriginal error: " + ex.Message);
+                    MessageBox.Show($"Error: 无法写入文件 {Environment.NewLine}Original error: " + ex.Message);
                 }
             }
-        }
-
-        private void Boom_OnClick(object sender, RoutedEventArgs e)
-        {
-            throw new Exception("Boom");
         }
     }
 }

@@ -1,22 +1,27 @@
 ﻿using System;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Security.Principal;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Forms;
+using System.Windows.Media;
 using System.Windows.Media.Animation;
+using System.Windows.Media.Effects;
 using System.Windows.Threading;
 using ARSoft.Tools.Net.Dns;
 using AuroraGUI.DnsSvr;
 using AuroraGUI.Fx;
 using AuroraGUI.Tools;
 using MaterialDesignThemes.Wpf;
+using static System.AppDomain;
 using WinFormMenuItem = System.Windows.Forms.MenuItem;
 using WinFormContextMenu = System.Windows.Forms.ContextMenu;
-using static System.AppDomain;
+using MessageBox = System.Windows.MessageBox;
 
 // ReSharper disable NotAccessedField.Local
 
@@ -30,14 +35,38 @@ namespace AuroraGUI
         public static string SetupBasePath = CurrentDomain.SetupInformation.ApplicationBase;
         public static IPAddress IntIPAddr;
         public static IPAddress LocIPAddr;
-        private static NotifyIcon NotifyIcon;
-        private static BackgroundWorker DnsSvrWorker = new BackgroundWorker(){WorkerSupportsCancellation = true};
+        public static NotifyIcon NotifyIcon;
+        private DnsServer MDnsServer;
+        private BackgroundWorker MDnsSvrWorker = new BackgroundWorker(){WorkerSupportsCancellation = true};
 
         public MainWindow()
         {
             InitializeComponent();
 
             WindowStyle = WindowStyle.SingleBorderWindow;
+            Grid.Effect = new BlurEffect() { Radius = 5, RenderingBias = RenderingBias.Performance };
+
+            if (TimeZoneInfo.Local.Id.Contains("China Standard Time") && RegionInfo.CurrentRegion.GeoId == 45) 
+            {
+                //Mainland China PRC
+                DnsSettings.SecondDnsIp = IPAddress.Parse("119.29.29.29");
+                DnsSettings.HttpsDnsUrl = "https://neatdns.ustclug.org/resolve";
+                UrlSettings.MDnsList = "https://cdn.jsdelivr.net/gh/mili-tan/AuroraDNS.GUI/List/L10N/DNS-CN.list";
+                UrlSettings.WhatMyIpApi = "https://myip.ustclug.org/";
+            }
+            else if (TimeZoneInfo.Local.Id.Contains("Taipei Standard Time") && RegionInfo.CurrentRegion.GeoId == 237) 
+            {
+                //Taiwan ROC
+                DnsSettings.SecondDnsIp = IPAddress.Parse("101.101.101.101");
+                DnsSettings.HttpsDnsUrl = "https://dns.twnic.tw/dns-query";
+                UrlSettings.MDnsList = "https://cdn.jsdelivr.net/gh/mili-tan/AuroraDNS.GUI/List/L10N/DNS-TW.list";
+            }
+            else if (RegionInfo.CurrentRegion.GeoId == 104)
+                //HongKong SAR
+                UrlSettings.MDnsList = "https://cdn.jsdelivr.net/gh/mili-tan/AuroraDNS.GUI/List/L10N/DNS-HK.list";
+
+            if (File.Exists($"{SetupBasePath}url.json"))
+                UrlSettings.ReadConfig($"{SetupBasePath}url.json");
 
             if (File.Exists($"{SetupBasePath}config.json"))
                 DnsSettings.ReadConfig($"{SetupBasePath}config.json");
@@ -52,52 +81,57 @@ namespace AuroraGUI
                 DnsSettings.ReadWhiteList($"{SetupBasePath}rewrite.list");
 
             ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
-            #pragma warning disable CS0162 //未实装
-            if (false)
-                ServicePointManager.ServerCertificateValidationCallback +=
-                    (sender, cert, chain, sslPolicyErrors) => true;
 
-            switch (1.2F)
-            {
-                case 1:
-                    ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls;
-                    break;
-                case 1.1F:
-                    ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls11;
-                    break;
-                case 1.2F:
-                    ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
-                    break;
-                default:
-                    ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
-                    break;
-            }
-            #pragma warning restore CS0162
+//            if (false)
+//                ServicePointManager.ServerCertificateValidationCallback +=
+//                    (sender, cert, chain, sslPolicyErrors) => true;
+//                //强烈不建议 忽略 TLS 证书安全错误
+//
+//            switch (0.0)
+//            {
+//                case 1:
+//                    ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls;
+//                    break;
+//                case 1.1:
+//                    ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls11;
+//                    break;
+//                case 1.2:
+//                    ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
+//                    break;
+//                default:
+//                    ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12 | SecurityProtocolType.Tls11;
+//                    break;
+//            }
 
             LocIPAddr = IPAddress.Parse(IpTools.GetLocIp());
             IntIPAddr = IPAddress.Parse(IpTools.GetIntIp());
 
-            DnsServer myDnsServer = new DnsServer(DnsSettings.ListenIp, 10, 10);
-            myDnsServer.QueryReceived += QueryResolve.ServerOnQueryReceived;
-            DnsSvrWorker.DoWork += (sender, args) => myDnsServer.Start();
-            DnsSvrWorker.Disposed += (sender, args) => myDnsServer.Stop();
-            
-            NotifyIcon = new NotifyIcon(){Text = @"AuroraDNS",Visible = true,
-                Icon = Properties.Resources.AuroraWhite};
+            MDnsServer = new DnsServer(DnsSettings.ListenIp, 10, 10);
+            MDnsServer.QueryReceived += QueryResolve.ServerOnQueryReceived;
+            MDnsSvrWorker.DoWork += (sender, args) => MDnsServer.Start();
+            MDnsSvrWorker.Disposed += (sender, args) => MDnsServer.Stop();
+
+            NotifyIcon = new NotifyIcon()
+            {
+                Text = @"AuroraDNS", Visible = false,
+                Icon = Properties.Resources.AuroraWhite
+            };
             WinFormMenuItem showItem = new WinFormMenuItem("最小化 / 恢复", MinimizedNormal);
             WinFormMenuItem restartItem = new WinFormMenuItem("重新启动", (sender, args) =>
             {
-                DnsSvrWorker.Dispose();
+                if (MDnsSvrWorker.IsBusy)
+                    MDnsSvrWorker.Dispose();
                 Process.Start(new ProcessStartInfo {FileName = GetType().Assembly.Location});
                 Environment.Exit(Environment.ExitCode);
             });
             WinFormMenuItem notepadLogItem = new WinFormMenuItem("查阅日志", (sender, args) =>
             {
                 if (File.Exists(
-                    $"{SetupBasePath}Log/{DateTime.Today.Year}{DateTime.Today.Month}{DateTime.Today.Day}.log")
-                )
+                    $"{SetupBasePath}Log/{DateTime.Today.Year}{DateTime.Today.Month:00}{DateTime.Today.Day:00}.log"))
                     Process.Start(new ProcessStartInfo("notepad.exe",
-                        $"{SetupBasePath}Log/{DateTime.Today.Year}{DateTime.Today.Month}{DateTime.Today.Day}.log"));
+                        $"{SetupBasePath}Log/{DateTime.Today.Year}{DateTime.Today.Month:00}{DateTime.Today.Day:00}.log"));
+                else
+                    MessageBox.Show("找不到当前日志文件，或当前未产生日志文件。");
             });
             WinFormMenuItem abootItem = new WinFormMenuItem("关于…", (sender, args) => new AboutWindow().ShowDialog());
             WinFormMenuItem updateItem = new WinFormMenuItem("检查更新…", (sender, args) => MyTools.CheckUpdate(GetType().Assembly.Location));
@@ -119,13 +153,20 @@ namespace AuroraGUI
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
             Visibility = Visibility.Hidden;
-            WindowBlur.SetEnabled(this, true);
+            if (Environment.OSVersion.Version.Major >= 10)
+            {
+                WindowBlur.SetEnabled(this, true);
+                Background = new SolidColorBrush(Color.FromArgb(255, 255, 255, 255)) {Opacity = 1};
+                Grid.Background = new SolidColorBrush(Color.FromArgb(255, 255, 255, 255)) { Opacity = 1 };
+            }
+
             var desktopWorkingArea = SystemParameters.WorkArea;
             Left = desktopWorkingArea.Right - Width - 1;
             Top = desktopWorkingArea.Bottom - Height - 0;
 
-            FadeIn(0.50);
+            FadeIn(0.2);
             Visibility = Visibility.Visible;
+            NotifyIcon.Visible = true;
 
             if (!MyTools.PortIsUse(53))
             {
@@ -134,6 +175,7 @@ namespace AuroraGUI
                     IsGlobal.IsChecked = true;
 
                 DnsEnable.IsChecked = true;
+                Grid.Effect = null;
 
                 if (File.Exists($"{SetupBasePath}config.json"))
                     WindowState = WindowState.Minimized;
@@ -141,43 +183,50 @@ namespace AuroraGUI
             else
             {
                 Snackbar.IsActive = true;
-                if (Process.GetProcessesByName(System.Windows.Forms.Application.CompanyName).Length > 1)
+                if (Process.GetProcessesByName(Process.GetCurrentProcess().ProcessName)
+                        .Count(o => o.Id != Process.GetCurrentProcess().Id) > 0)
                 {
-                    Snackbar.Message = new SnackbarMessage() {Content = "DNS 服务器无法启动:端口被占用"};
-                    NotifyIcon.Text = @"AuroraDNS - [端口被占用]";
+                    var snackbarMsg = new SnackbarMessage()
+                    {
+                        Content = "可能已有一个正在运行的实例, 请不要重复启动！",
+                        ActionContent = "退出",
+                    };
+                    snackbarMsg.ActionClick += (o, args) => Environment.Exit(Environment.ExitCode);
+                    Snackbar.Message = snackbarMsg;
+                    NotifyIcon.Text = @"AuroraDNS - [请不要重复启动]";
                 }
                 else
                 {
-                    Snackbar.Message = new SnackbarMessage() { Content = "DNS 服务器无法启动:可能已有一个实例正在运行, 请不要重复启动" };
-                    NotifyIcon.Text = @"AuroraDNS - [请不要重复启动]";
+                    Snackbar.Message = new SnackbarMessage() { Content = "DNS 服务器无法启动, 53端口被占用。"};
+                    NotifyIcon.Text = @"AuroraDNS - [端口被占用]";
                 }
 
                 DnsEnable.IsEnabled = false;
-                IsEnabled = false;
-
+                ControlGrid.IsEnabled = false;
             }
-
         }
 
         private void IsGlobal_Checked(object sender, RoutedEventArgs e)
         {
-            DnsSettings.ListenIp = IPAddress.Any;
-            if (DnsSvrWorker.IsBusy)
+            if (MyTools.PortIsUse(53))
             {
-                DnsSvrWorker.Dispose();
-                Snackbar.MessageQueue.Enqueue(new TextBlock() { Text = "监听地址:" + IPAddress.Any });
-                DnsSvrWorker.RunWorkerAsync();
+                MDnsSvrWorker.Dispose();
+                MDnsServer = new DnsServer(IPAddress.Any, 10, 10);
+                MDnsServer.QueryReceived += QueryResolve.ServerOnQueryReceived;
+                Snackbar.MessageQueue.Enqueue(new TextBlock() {Text = "监听地址: 局域网 " + IPAddress.Any});
+                MDnsSvrWorker.RunWorkerAsync();
             }
         }
 
         private void IsGlobal_Unchecked(object sender, RoutedEventArgs e)
         {
-            DnsSettings.ListenIp = IPAddress.Loopback;
-            if (DnsSvrWorker.IsBusy)
+            if (MyTools.PortIsUse(53))
             {
-                DnsSvrWorker.Dispose();
-                Snackbar.MessageQueue.Enqueue(new TextBlock() { Text = "监听地址:" + IPAddress.Loopback });
-                DnsSvrWorker.RunWorkerAsync();
+                MDnsSvrWorker.Dispose();
+                MDnsServer = new DnsServer(IPAddress.Loopback, 10, 10);
+                MDnsServer.QueryReceived += QueryResolve.ServerOnQueryReceived;
+                Snackbar.MessageQueue.Enqueue(new TextBlock() {Text = "监听地址: 本地 " + IPAddress.Loopback});
+                MDnsSvrWorker.RunWorkerAsync();
             }
         }
 
@@ -220,21 +269,21 @@ namespace AuroraGUI
         private void IsLog_Checked(object sender, RoutedEventArgs e)
         {
             DnsSettings.DebugLog = true;
-            if (DnsSvrWorker.IsBusy)
-                Snackbar.MessageQueue.Enqueue(new TextBlock() {Text = "记录日志:" + DnsSettings.DebugLog});
+            if (MyTools.PortIsUse(53))
+                Snackbar.MessageQueue.Enqueue(new TextBlock() {Text = "记录日志:是"});
         }
 
         private void IsLog_Unchecked(object sender, RoutedEventArgs e)
         {
             DnsSettings.DebugLog = false;
-            if (DnsSvrWorker.IsBusy)
-                Snackbar.MessageQueue.Enqueue(new TextBlock() { Text = "记录日志:" + DnsSettings.DebugLog });
+            if (MyTools.PortIsUse(53))
+                Snackbar.MessageQueue.Enqueue(new TextBlock() {Text = "记录日志:否"});
         }
 
         private void DnsEnable_Checked(object sender, RoutedEventArgs e)
         {
-            DnsSvrWorker.RunWorkerAsync();
-            if (DnsSvrWorker.IsBusy)
+            MDnsSvrWorker.RunWorkerAsync();
+            if (MDnsSvrWorker.IsBusy)
             {
                 Snackbar.MessageQueue.Enqueue(new TextBlock() { Text = "DNS 服务器已启动" });
                 NotifyIcon.Text = @"AuroraDNS - Running";
@@ -243,8 +292,8 @@ namespace AuroraGUI
 
         private void DnsEnable_Unchecked(object sender, RoutedEventArgs e)
         {
-            DnsSvrWorker.Dispose();
-            if (!DnsSvrWorker.IsBusy)
+            MDnsSvrWorker.Dispose();
+            if (!MDnsSvrWorker.IsBusy)
             {
                 Snackbar.MessageQueue.Enqueue(new TextBlock() { Text = "DNS 服务器已停止" });
                 NotifyIcon.Text = @"AuroraDNS - Stop";
@@ -272,7 +321,7 @@ namespace AuroraGUI
         {
             try
             {
-                DnsSvrWorker.Dispose();
+                MDnsSvrWorker.Dispose();
                 ProcessStartInfo startInfo = new ProcessStartInfo
                 {
                     FileName = GetType().Assembly.Location,
@@ -292,11 +341,13 @@ namespace AuroraGUI
         {
             if (WindowState == WindowState.Normal)
             {
-                FadeIn(0.25);
+                FadeIn(0.2);
                 ShowInTaskbar = true;
             }
             else if (WindowState == WindowState.Minimized)
                 ShowInTaskbar = false;
+
+            GC.Collect();
         }
 
         private void FadeIn(double sec)

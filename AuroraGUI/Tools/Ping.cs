@@ -14,7 +14,8 @@ namespace AuroraGUI.Tools
             var times = new List<int>();
             for (int i = 0; i < 2; i++)
             {
-                Socket socks = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp){ Blocking = true };
+                Socket socks = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp)
+                    {Blocking = true, ReceiveTimeout = 6000, SendTimeout = 6000};
 
                 IPEndPoint point;
                 try
@@ -33,8 +34,7 @@ namespace AuroraGUI.Tools
                 }
                 catch
                 {
-                    times.Add(0);
-                    return times;
+                    //times.Add(0);
                 }
                 stopWatch.Stop();
                 times.Add(Convert.ToInt32(stopWatch.Elapsed.TotalMilliseconds));
@@ -62,25 +62,22 @@ namespace AuroraGUI.Tools
 
         public static List<int> Curl(string urlStr,string name)
         {
+            var webClient = new MyTools.MWebClient() { TimeOut = 3000 };
             var times = new List<int>();
-            for (int i = 0; i < 2; i++)
+            for (int i = 0; i < 4; i++)
             {
-                Socket socks = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp) { Blocking = true };
-
                 Stopwatch stopWatch = new Stopwatch();
                 stopWatch.Start();
                 try
                 {
-                    new WebClient().DownloadString(urlStr + "?ct=application/dns-json&name=" + name);
+                    webClient.DownloadString(urlStr + $"?ct=application/dns-json&name={name}&type=A");
                 }
                 catch
                 {
-                    times.Add(0);
-                    return times;
+                    //times.Add(0);
                 }
                 stopWatch.Stop();
                 times.Add(Convert.ToInt32(stopWatch.Elapsed.TotalMilliseconds));
-                socks.Close();
                 Thread.Sleep(50);
             }
 

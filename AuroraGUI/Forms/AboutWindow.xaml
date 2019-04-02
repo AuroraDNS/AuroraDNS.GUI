@@ -9,20 +9,24 @@
         Background="#FAFAFA"
         Topmost="True"
 
-        Title="关于" Height="380" Width="600" WindowStartupLocation="CenterScreen"
+        Title="关于" Height="350" Width="600" WindowStartupLocation="CenterScreen"
         MinWidth="550" MinHeight="370" ResizeMode="NoResize">
     <Grid>
-        <Grid HorizontalAlignment="Center" Height="87" Margin="-3,0,-3.4,0" VerticalAlignment="Top" Width="600" Background="White">
+        <Grid HorizontalAlignment="Center" Height="130" Margin="-3,0,-3.4,0" VerticalAlignment="Top" Width="600" Opacity="0.8">
+            <Grid.Background>
+                <ImageBrush ImageSource="../Resources/cun.jpg" TileMode="FlipXY" Stretch="UniformToFill" />
+            </Grid.Background>
             <Grid.Effect>
-                <DropShadowEffect Color="WhiteSmoke"  ShadowDepth="1" Opacity="1" />
+                <DropShadowEffect Color="DarkGray"  ShadowDepth="1" Opacity="0.7" />
             </Grid.Effect>
         </Grid>
 
-        <Label Content="关于AuroraDNS GUI" HorizontalAlignment="Left" Margin="20,10,0,0" 
-               VerticalAlignment="Top" Foreground="#616161"/>
+        <TextBlock Name="AboutText" Text="关于AuroraDNS.GUI - 190401.Releases" Margin="9,16,9,0" 
+               VerticalAlignment="Top" Foreground="#FFFFFF" 
+               HorizontalAlignment="Center" TextAlignment="Center" Height="17"/>
 
         <materialDesign:Card materialDesign:ShadowAssist.ShadowDepth="Depth1"
-                             Padding="0"
+                             Padding="0" Opacity="0.85"
                              Margin="15,50,15,0"
                              >
             <Grid>
@@ -33,7 +37,7 @@
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
 
-                <Image Grid.Row="0" Margin="16 16 16 4" Height="50" Width="50" HorizontalAlignment="Left" Source="Aurora.png"/>
+                <Image Grid.Row="0" Margin="16 16 16 4" Height="50" Width="50" HorizontalAlignment="Left" Source="../Aurora.png"/>
                 <TextBlock Grid.Row="0" Margin="70,25,14,15" VerticalAlignment="Center"
                            Style="{StaticResource MaterialDesignHeadlineTextBlock}" Foreground="#FF333333" FontFamily="Roboto"><Italic>A</Italic>uroraDNS</TextBlock>
                 <Separator Grid.Row="1" Style="{StaticResource MaterialDesignSeparator}" />
@@ -51,7 +55,7 @@
         </materialDesign:Card>
 
         <materialDesign:Card materialDesign:ShadowAssist.ShadowDepth="Depth1"
-                             Padding="0"
+                             Padding="0"  Opacity="0.85"
                              Margin="15,190,15,0">
             <Grid>
                 <Grid.RowDefinitions>
@@ -63,7 +67,7 @@
                 <TextBlock Grid.Row="0" Margin="16,16,0,5.4" 
                            VerticalAlignment="Center" HorizontalAlignment="Left"
                            Style="{StaticResource MaterialDesignBody2TextBlock}"
-                           Foreground="#FF757575" ><Run Text="© 2019 AuroraDNS Proj. All rights reserved. 使用MIT许可证开放源代码。"/></TextBlock>
+                           Foreground="#FF757575" ><Run Text="© 2018-2019 AuroraDNS Proj. All rights reserved. 使用MIT许可证开放源代码。"/></TextBlock>
                 <Separator Grid.Row="1" Style="{StaticResource MaterialDesignSeparator}"/>
                 <TextBlock Grid.Row="2" Margin="16,7.6,0,15.4" 
                            VerticalAlignment="Center" HorizontalAlignment="Left" 
