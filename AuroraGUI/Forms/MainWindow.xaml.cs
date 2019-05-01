@@ -5,6 +5,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Runtime.Caching;
 using System.Security.Principal;
 using System.Windows;
 using System.Windows.Controls;
@@ -33,8 +34,8 @@ namespace AuroraGUI
     public partial class MainWindow
     {
         public static string SetupBasePath = CurrentDomain.SetupInformation.ApplicationBase;
-        public static IPAddress IntIPAddr;
-        public static IPAddress LocIPAddr;
+        public static IPAddress IntIPAddr = IPAddress.Any;
+        public static IPAddress LocIPAddr = IPAddress.Any;
         public static NotifyIcon NotifyIcon;
         private DnsServer MDnsServer;
         private BackgroundWorker MDnsSvrWorker = new BackgroundWorker(){WorkerSupportsCancellation = true};
@@ -44,7 +45,7 @@ namespace AuroraGUI
             InitializeComponent();
 
             WindowStyle = WindowStyle.SingleBorderWindow;
-            Grid.Effect = new BlurEffect() { Radius = 5, RenderingBias = RenderingBias.Performance };
+            Grid.Effect = new BlurEffect { Radius = 5, RenderingBias = RenderingBias.Performance };
 
             if (TimeZoneInfo.Local.Id.Contains("China Standard Time") && RegionInfo.CurrentRegion.GeoId == 45) 
             {
@@ -65,22 +66,27 @@ namespace AuroraGUI
                 //HongKong SAR
                 UrlSettings.MDnsList = "https://cdn.jsdelivr.net/gh/mili-tan/AuroraDNS.GUI/List/L10N/DNS-HK.list";
 
-            if (File.Exists($"{SetupBasePath}url.json"))
-                UrlSettings.ReadConfig($"{SetupBasePath}url.json");
+            try
+            {
+                if (File.Exists($"{SetupBasePath}url.json"))
+                    UrlSettings.ReadConfig($"{SetupBasePath}url.json");
+                if (File.Exists($"{SetupBasePath}config.json"))
+                    DnsSettings.ReadConfig($"{SetupBasePath}config.json");
+                if (DnsSettings.BlackListEnable && File.Exists($"{SetupBasePath}black.list"))
+                    DnsSettings.ReadBlackList($"{SetupBasePath}black.list");
+                if (DnsSettings.WhiteListEnable && File.Exists($"{SetupBasePath}white.list"))
+                    DnsSettings.ReadWhiteList($"{SetupBasePath}white.list");
+                if (DnsSettings.WhiteListEnable && File.Exists($"{SetupBasePath}rewrite.list"))
+                    DnsSettings.ReadWhiteList($"{SetupBasePath}rewrite.list");
+                if (DnsSettings.ChinaListEnable && File.Exists("china.list"))
+                    DnsSettings.ReadChinaList(SetupBasePath + "china.list");
+            }
+            catch (Exception e)
+            {
+                MessageBox.Show($"Error: 尝试读取配置文件错误{Environment.NewLine}Original error: {e}");
+            }
 
-            if (File.Exists($"{SetupBasePath}config.json"))
-                DnsSettings.ReadConfig($"{SetupBasePath}config.json");
-
-            if (DnsSettings.BlackListEnable && File.Exists($"{SetupBasePath}black.list"))
-                DnsSettings.ReadBlackList($"{SetupBasePath}black.list");
-
-            if (DnsSettings.WhiteListEnable && File.Exists($"{SetupBasePath}white.list"))
-                DnsSettings.ReadWhiteList($"{SetupBasePath}white.list");
-
-            if (DnsSettings.WhiteListEnable && File.Exists($"{SetupBasePath}rewrite.list"))
-                DnsSettings.ReadWhiteList($"{SetupBasePath}rewrite.list");
-
-            ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
+            ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12 | SecurityProtocolType.Tls11;
 
 //            if (false)
 //                ServicePointManager.ServerCertificateValidationCallback +=
@@ -103,13 +109,34 @@ namespace AuroraGUI
 //                    break;
 //            }
 
-            LocIPAddr = IPAddress.Parse(IpTools.GetLocIp());
-            IntIPAddr = IPAddress.Parse(IpTools.GetIntIp());
-
             MDnsServer = new DnsServer(DnsSettings.ListenIp, 10, 10);
             MDnsServer.QueryReceived += QueryResolve.ServerOnQueryReceived;
             MDnsSvrWorker.DoWork += (sender, args) => MDnsServer.Start();
             MDnsSvrWorker.Disposed += (sender, args) => MDnsServer.Stop();
+
+            using (BackgroundWorker worker = new BackgroundWorker())
+            {
+                worker.DoWork += (sender, args) =>
+                {
+                    LocIPAddr = IPAddress.Parse(IpTools.GetLocIp());
+                    IntIPAddr = IPAddress.Parse(IpTools.GetIntIp());
+
+                    try
+                    {
+                        if (DnsSettings.WhiteListEnable && File.Exists($"{SetupBasePath}white.sub.list"))
+                            DnsSettings.ReadWhiteListSubscribe($"{SetupBasePath}white.sub.list");
+                        if (DnsSettings.WhiteListEnable && File.Exists($"{SetupBasePath}rewrite.sub.list"))
+                            DnsSettings.ReadWhiteListSubscribe($"{SetupBasePath}rewrite.sub.list");
+                    }
+                    catch (Exception e)
+                    {
+                        MessageBox.Show($"Error: 尝试下载订阅列表失败{Environment.NewLine}Original error: {e}");
+                    }
+
+                    MemoryCache.Default.Trim(100);
+                };
+                worker.RunWorkerAsync();
+            }
 
             NotifyIcon = new NotifyIcon()
             {
@@ -128,7 +155,7 @@ namespace AuroraGUI
             {
                 if (File.Exists(
                     $"{SetupBasePath}Log/{DateTime.Today.Year}{DateTime.Today.Month:00}{DateTime.Today.Day:00}.log"))
-                    Process.Start(new ProcessStartInfo("notepad.exe",
+                    Process.Start(new ProcessStartInfo(
                         $"{SetupBasePath}Log/{DateTime.Today.Year}{DateTime.Today.Month:00}{DateTime.Today.Day:00}.log"));
                 else
                     MessageBox.Show("找不到当前日志文件，或当前未产生日志文件。");
@@ -153,22 +180,23 @@ namespace AuroraGUI
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
             Visibility = Visibility.Hidden;
-            if (Environment.OSVersion.Version.Major >= 10)
-            {
+            if (Environment.OSVersion.Version.Major == 10)
                 WindowBlur.SetEnabled(this, true);
-                Background = new SolidColorBrush(Color.FromArgb(255, 255, 255, 255)) {Opacity = 1};
-                Grid.Background = new SolidColorBrush(Color.FromArgb(255, 255, 255, 255)) { Opacity = 1 };
+            else
+            {
+                NotifyIcon.Icon = Properties.Resources.AuroraBlack;
+                Background = new SolidColorBrush(Colors.White) {Opacity = 1};
             }
 
             var desktopWorkingArea = SystemParameters.WorkArea;
-            Left = desktopWorkingArea.Right - Width - 1;
-            Top = desktopWorkingArea.Bottom - Height - 0;
+            Left = desktopWorkingArea.Right - Width - 5;
+            Top = desktopWorkingArea.Bottom - Height - 5;
 
             FadeIn(0.2);
             Visibility = Visibility.Visible;
             NotifyIcon.Visible = true;
 
-            if (!MyTools.PortIsUse(53))
+            if (!MyTools.PortIsUse(DnsSettings.ListenPort))
             {
                 IsLog.IsChecked = DnsSettings.DebugLog;
                 if (Equals(DnsSettings.ListenIp, IPAddress.Any))
@@ -189,7 +217,7 @@ namespace AuroraGUI
                     var snackbarMsg = new SnackbarMessage()
                     {
                         Content = "可能已有一个正在运行的实例, 请不要重复启动！",
-                        ActionContent = "退出",
+                        ActionContent = "退出"
                     };
                     snackbarMsg.ActionClick += (o, args) => Environment.Exit(Environment.ExitCode);
                     Snackbar.Message = snackbarMsg;
@@ -197,7 +225,7 @@ namespace AuroraGUI
                 }
                 else
                 {
-                    Snackbar.Message = new SnackbarMessage() { Content = "DNS 服务器无法启动, 53端口被占用。"};
+                    Snackbar.Message = new SnackbarMessage() {Content = $"DNS 服务器无法启动, {DnsSettings.ListenPort}端口被占用。"};
                     NotifyIcon.Text = @"AuroraDNS - [端口被占用]";
                 }
 
@@ -208,10 +236,10 @@ namespace AuroraGUI
 
         private void IsGlobal_Checked(object sender, RoutedEventArgs e)
         {
-            if (MyTools.PortIsUse(53))
+            if (MyTools.PortIsUse(DnsSettings.ListenPort))
             {
                 MDnsSvrWorker.Dispose();
-                MDnsServer = new DnsServer(IPAddress.Any, 10, 10);
+                MDnsServer = new DnsServer(new IPEndPoint(IPAddress.Any, DnsSettings.ListenPort), 10, 10);
                 MDnsServer.QueryReceived += QueryResolve.ServerOnQueryReceived;
                 Snackbar.MessageQueue.Enqueue(new TextBlock() {Text = "监听地址: 局域网 " + IPAddress.Any});
                 MDnsSvrWorker.RunWorkerAsync();
@@ -220,10 +248,10 @@ namespace AuroraGUI
 
         private void IsGlobal_Unchecked(object sender, RoutedEventArgs e)
         {
-            if (MyTools.PortIsUse(53))
+            if (MyTools.PortIsUse(DnsSettings.ListenPort))
             {
                 MDnsSvrWorker.Dispose();
-                MDnsServer = new DnsServer(IPAddress.Loopback, 10, 10);
+                MDnsServer = new DnsServer(new IPEndPoint(IPAddress.Loopback, DnsSettings.ListenPort), 10, 10);
                 MDnsServer.QueryReceived += QueryResolve.ServerOnQueryReceived;
                 Snackbar.MessageQueue.Enqueue(new TextBlock() {Text = "监听地址: 本地 " + IPAddress.Loopback});
                 MDnsSvrWorker.RunWorkerAsync();
@@ -269,14 +297,14 @@ namespace AuroraGUI
         private void IsLog_Checked(object sender, RoutedEventArgs e)
         {
             DnsSettings.DebugLog = true;
-            if (MyTools.PortIsUse(53))
+            if (MyTools.PortIsUse(DnsSettings.ListenPort))
                 Snackbar.MessageQueue.Enqueue(new TextBlock() {Text = "记录日志:是"});
         }
 
         private void IsLog_Unchecked(object sender, RoutedEventArgs e)
         {
             DnsSettings.DebugLog = false;
-            if (MyTools.PortIsUse(53))
+            if (MyTools.PortIsUse(DnsSettings.ListenPort))
                 Snackbar.MessageQueue.Enqueue(new TextBlock() {Text = "记录日志:否"});
         }
 
@@ -306,15 +334,6 @@ namespace AuroraGUI
 
             IsLog.IsChecked = DnsSettings.DebugLog;
             IsGlobal.IsChecked = Equals(DnsSettings.ListenIp, IPAddress.Any);
-
-            if (DnsSettings.BlackListEnable && File.Exists("black.list"))
-                DnsSettings.ReadBlackList();
-
-            if (DnsSettings.WhiteListEnable && File.Exists("white.list"))
-                DnsSettings.ReadWhiteList();
-
-            if (DnsSettings.WhiteListEnable && File.Exists("rewrite.list"))
-                DnsSettings.ReadWhiteList("rewrite.list");
         }
 
         private void RunAsAdmin_OnActionClick(object sender, RoutedEventArgs e)
@@ -333,7 +352,7 @@ namespace AuroraGUI
             }
             catch (Exception exception)
             {
-                MyTools.BgwLog(exception.ToString());
+                MyTools.BackgroundLog(exception.ToString());
             }
         }
 

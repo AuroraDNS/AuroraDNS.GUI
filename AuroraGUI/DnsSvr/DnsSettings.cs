@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using ARSoft.Tools.Net;
+using AuroraGUI.Tools;
 using MojoUnity;
 
 namespace AuroraGUI.DnsSvr
@@ -11,11 +12,13 @@ namespace AuroraGUI.DnsSvr
     class DnsSettings
     {
         public static List<DomainName> BlackList;
-        public static Dictionary<DomainName, string> WhiteList;
+        public static List<DomainName> ChinaList;
+        public static Dictionary<DomainName, string> WhiteList = new Dictionary<DomainName, string>();
 
         public static string HttpsDnsUrl = "https://dns.cloudflare.com/dns-query";
         public static string SecondHttpsDnsUrl = "https://1.0.0.1/dns-query";
         public static IPAddress ListenIp = IPAddress.Loopback;
+        public static int ListenPort = 53;
         public static IPAddress EDnsIp = IPAddress.Any;
         public static IPAddress SecondDnsIp = IPAddress.Parse("1.1.1.1");
         public static bool EDnsCustomize = false;
@@ -23,7 +26,10 @@ namespace AuroraGUI.DnsSvr
         public static bool DebugLog = false;
         public static bool BlackListEnable  = false;
         public static bool WhiteListEnable  = false;
-        public static bool ViaDnsMsg = false;
+        public static bool ChinaListEnable = false;
+        public static bool DnsMsgEnable = false;
+        public static bool DnsCacheEnable = false;
+        public static bool Http2Enable = false;
         public static WebProxy WProxy = new WebProxy("127.0.0.1:1080");
 
         public static void ReadConfig(string path)
@@ -36,7 +42,15 @@ namespace AuroraGUI.DnsSvr
             if (configStr.Contains("\"SecondHttpsDns\""))
                 SecondHttpsDnsUrl = configJson.AsObjectGetString("SecondHttpsDns");
             if (configStr.Contains("\"EnableDnsMessage\""))
-                ViaDnsMsg = configJson.AsObjectGetBool("EnableDnsMessage");
+                DnsMsgEnable = configJson.AsObjectGetBool("EnableDnsMessage");
+            if (configStr.Contains("\"EnableDnsCache\""))
+                DnsCacheEnable = configJson.AsObjectGetBool("EnableDnsCache");
+            if (configStr.Contains("\"EnableHttp2\""))
+                Http2Enable = configJson.AsObjectGetBool("EnableHttp2");
+            if (configStr.Contains("\"Port\""))
+                ListenPort = configJson.AsObjectGetInt("Port", 53);
+            if (configStr.Contains("\"ChinaList\""))
+                ChinaListEnable = configJson.AsObjectGetBool("ChinaList");
 
             ListenIp = IPAddress.Parse(configJson.AsObjectGetString("Listen"));
             BlackListEnable = configJson.AsObjectGetBool("BlackList");
@@ -58,14 +72,65 @@ namespace AuroraGUI.DnsSvr
             BlackList = Array.ConvertAll(blackListStrs, DomainName.Parse).ToList();
         }
 
+        public static void ReadChinaList(string path = "china.list")
+        {
+            string[] chinaListStrs = File.ReadAllLines(path);
+            ChinaList = Array.ConvertAll(chinaListStrs, DomainName.Parse).ToList();
+        }
+
         public static void ReadWhiteList(string path = "white.list")
         {
             string[] whiteListStrs = File.ReadAllLines(path);
-            WhiteList = whiteListStrs.Select(
-                itemStr => itemStr.Split(' ', ',', '\t')).ToDictionary(
-                whiteSplit => DomainName.Parse(whiteSplit[1]),
-                whiteSplit => whiteSplit[0]);
+            foreach (var itemStr in whiteListStrs)
+            {
+                try
+                {
+                    var strings = itemStr.Split(' ', ',', '\t');
+                    if (!WhiteList.ContainsKey(DomainName.Parse(strings[1])))
+                        WhiteList.Add(DomainName.Parse(strings[1]), strings[0]);
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine(e);
+                }
+            }
         }
+
+        public static void ReadWhiteListWeb(string webUrl)
+        {
+            try
+            {
+                string[] whiteListStrs = new WebClient().DownloadString(webUrl).Split('\n');
+                foreach (var itemStr in whiteListStrs)
+                {
+                    var strings = itemStr.Split(' ', ',', '\t');
+                    try
+                    {
+                        if (!WhiteList.ContainsKey(DomainName.Parse(strings[1])))
+                            WhiteList.Add(DomainName.Parse(strings[1]), strings[0]);
+                    }
+                    catch (Exception e)
+                    {
+                        MyTools.BackgroundLog(e.ToString());
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                MyTools.BackgroundLog(e.ToString());
+            }
+        }
+
+        public static void ReadWhiteListSubscribe(string path)
+        {
+            string[] whiteListSubStrs = File.ReadAllLines(path);
+            foreach (var item in whiteListSubStrs)
+            {
+                if (item.ToLower().Contains("http://") || item.ToLower().Contains("https://"))
+                    ReadWhiteListWeb(item);
+            }
+        }
+
     }
 
     class UrlSettings

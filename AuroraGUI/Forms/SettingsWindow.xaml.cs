@@ -5,12 +5,14 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Runtime.Caching;
 using System.Security.Principal;
 using System.Windows;
 using System.Windows.Controls;
 using AuroraGUI.DnsSvr;
 using AuroraGUI.Forms;
 using AuroraGUI.Tools;
+using MaterialDesignThemes.Wpf;
 using Microsoft.Win32;
 
 // ReSharper disable LocalizableElement
@@ -29,7 +31,7 @@ namespace AuroraGUI
             Log.IsChecked = DnsSettings.DebugLog;
             EDNSCustomize.IsChecked = DnsSettings.EDnsCustomize;
             WhiteList.IsChecked = DnsSettings.WhiteListEnable;
-            BlackList.IsChecked = DnsSettings.BlackListEnable;
+            DNSCache.IsChecked = DnsSettings.DnsCacheEnable;
             Proxy.IsChecked = DnsSettings.ProxyEnable;
 
             DoHUrlText.Text = DnsSettings.HttpsDnsUrl;
@@ -45,12 +47,6 @@ namespace AuroraGUI
                 RunWithStart.IsChecked = MyTools.GetRunWithStart("AuroraDNS");
             else
                 RunWithStart.IsEnabled = false;
-
-            if (File.Exists($"{MainWindow.SetupBasePath}black.list"))
-                BlackList.IsEnabled = true;
-            if (File.Exists($"{MainWindow.SetupBasePath}white.list"))
-                WhiteList.IsEnabled = true;
-
             if (!new WindowsPrincipal(WindowsIdentity.GetCurrent()).IsInRole(WindowsBuiltInRole.Administrator))
                 RunAsAdmin.Visibility = Visibility.Visible;
             if (File.Exists($"{MainWindow.SetupBasePath}url.json"))
@@ -73,7 +69,7 @@ namespace AuroraGUI
         {
             DnsSettings.DebugLog = Convert.ToBoolean(Log.IsChecked);
             DnsSettings.EDnsCustomize = Convert.ToBoolean(EDNSCustomize.IsChecked);
-            DnsSettings.BlackListEnable = Convert.ToBoolean(BlackList.IsChecked);
+            DnsSettings.DnsCacheEnable = Convert.ToBoolean(DNSCache.IsChecked);
             DnsSettings.WhiteListEnable = Convert.ToBoolean(WhiteList.IsChecked);
             DnsSettings.ProxyEnable = Convert.ToBoolean(Proxy.IsChecked);
 
@@ -94,11 +90,21 @@ namespace AuroraGUI
                 else
                     DnsSettings.WProxy = new WebProxy("127.0.0.1:80");
 
+                if (DnsSettings.BlackListEnable && File.Exists("black.list"))
+                    DnsSettings.ReadBlackList(MainWindow.SetupBasePath + "black.list");
+                if (DnsSettings.ChinaListEnable && File.Exists("china.list"))
+                    DnsSettings.ReadChinaList(MainWindow.SetupBasePath + "china.list");
+                if (DnsSettings.WhiteListEnable && File.Exists("white.list"))
+                    DnsSettings.ReadWhiteList(MainWindow.SetupBasePath + "white.list");
+                if (DnsSettings.WhiteListEnable && File.Exists("rewrite.list"))
+                    DnsSettings.ReadWhiteList(MainWindow.SetupBasePath + "rewrite.list");
+
                 File.WriteAllText($"{MainWindow.SetupBasePath}config.json",
                     "{\n" +
                     $"\"Listen\" : \"{DnsSettings.ListenIp}\",\n" +
                     $"\"SecondDns\" : \"{DnsSettings.SecondDnsIp}\",\n" +
                     $"\"BlackList\" : {DnsSettings.BlackListEnable.ToString().ToLower()},\n" +
+                    $"\"ChinaList\" : {DnsSettings.ChinaListEnable.ToString().ToLower()},\n" +
                     $"\"RewriteList\" : {DnsSettings.WhiteListEnable.ToString().ToLower()},\n" +
                     $"\"DebugLog\" : {DnsSettings.DebugLog.ToString().ToLower()},\n" +
                     $"\"EDnsCustomize\" : {DnsSettings.EDnsCustomize.ToString().ToLower()},\n" +
@@ -107,42 +113,14 @@ namespace AuroraGUI
                     $"\"HttpsDns\" : \"{DnsSettings.HttpsDnsUrl.Trim()}\",\n" +
                     $"\"SecondHttpsDns\" : \"{DnsSettings.SecondHttpsDnsUrl}\",\n" +
                     $"\"Proxy\" : \"{ProxyServer.Text + ":" + ProxyServerPort.Text}\",\n" +
-                    $"\"EnableDnsMessage\" : {DnsSettings.ViaDnsMsg.ToString().ToLower()} \n" +
+                    $"\"EnableDnsCache\" : {DnsSettings.DnsCacheEnable.ToString().ToLower()},\n" +
+                    $"\"EnableDnsMessage\" : {DnsSettings.DnsMsgEnable.ToString().ToLower()},\n" +
+                    $"\"EnableHttp2\" : {DnsSettings.Http2Enable.ToString().ToLower()} \n" +
                     "}");
                 Snackbar.MessageQueue.Enqueue(new TextBlock() { Text = @"设置已保存!" });
             }
             else
                 Snackbar.MessageQueue.Enqueue(new TextBlock() { Text = @"不应为空,请填写完全。" }); 
-        }
-
-        private void BlackListButton_OnClick(object sender, RoutedEventArgs e)
-        {
-            OpenFileDialog openFileDialog = new OpenFileDialog()
-            {
-                Filter = "list files (*.list)|*.list|txt files (*.txt)|*.txt|All files (*.*)|*.*",
-                RestoreDirectory = true
-            };
-
-            if (openFileDialog.ShowDialog() == true)
-            {
-                try
-                {
-                    if (string.IsNullOrWhiteSpace(File.ReadAllText(openFileDialog.FileName)))
-                        Snackbar.MessageQueue.Enqueue(new TextBlock() { Text = @"Error: 无效的空文件。" });
-                    else
-                    {
-                        File.Copy(openFileDialog.FileName, $"{MainWindow.SetupBasePath}black.list");
-                        Snackbar.MessageQueue.Enqueue(new TextBlock() { Text = @"导入成功!" });
-                    }
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"Error: 无法写入文件 {Environment.NewLine}Original error: " + ex.Message);
-                }
-            }
-
-            if (File.Exists($"{MainWindow.SetupBasePath}black.list"))
-                BlackList.IsEnabled = true;
         }
 
         private void WhiteListButton_OnClick(object sender, RoutedEventArgs e)
@@ -187,39 +165,49 @@ namespace AuroraGUI
                         .DownloadString(UrlSettings.MDohList).Split('\n').ToList();
                     dnsListStrings = new WebClient()
                         .DownloadString(UrlSettings.MDnsList).Split('\n').ToList();
+
+                    if (string.IsNullOrWhiteSpace(dohListStrings[dohListStrings.Count - 1]))
+                        dohListStrings.RemoveAt(dohListStrings.Count - 1);
+                    if (string.IsNullOrWhiteSpace(dnsListStrings[dnsListStrings.Count - 1]))
+                        dnsListStrings.RemoveAt(dnsListStrings.Count - 1);
                 }
                 catch (Exception exception)
                 {
-                    MyTools.BgwLog(@"| Download list failed : " + exception);
+                    MyTools.BackgroundLog(@"| Download list failed : " + exception);
                 }
-
-                if (string.IsNullOrWhiteSpace(dohListStrings[dohListStrings.Count - 1]))
-                    dohListStrings.RemoveAt(dohListStrings.Count - 1);
-                if (string.IsNullOrWhiteSpace(dnsListStrings[dnsListStrings.Count - 1]))
-                    dnsListStrings.RemoveAt(dnsListStrings.Count - 1);
             };
             bgWorker.RunWorkerCompleted += (o, args) =>
             {
-                if (UrlSettings.MDohList.Contains(".list"))
-                    foreach (var item in dohListStrings)
-                    {
-                        DoHUrlText.Items.Add(item.Split('*', ',')[0].Trim());
-                        SecondDoHUrlText.Items.Add(item.Split('*', ',')[0].Trim());
-                    }
-                if (UrlSettings.MDnsList.Contains(".list"))
-                    foreach (var item in dnsListStrings)
-                        SecondDNS.Items.Add(item.Split('*', ',')[0].Trim());
+                try
+                {
+                    if (dohListStrings != null && dohListStrings.Count != 0)
+                        foreach (var item in dohListStrings)
+                        {
+                            DoHUrlText.Items.Add(item.Split('*', ',')[0].Trim());
+                            SecondDoHUrlText.Items.Add(item.Split('*', ',')[0].Trim());
+                        }
+                    if (dnsListStrings != null && dnsListStrings.Count != 0)
+                        foreach (var item in dnsListStrings)
+                            SecondDNS.Items.Add(item.Split('*', ',')[0].Trim());
 
-                if (File.Exists($"{MainWindow.SetupBasePath}doh.list"))
-                    foreach (var item in File.ReadAllLines($"{MainWindow.SetupBasePath}doh.list"))
-                    {
-                        DoHUrlText.Items.Add(item.Split('*', ',')[0].Trim());
-                        SecondDoHUrlText.Items.Add(item.Split('*', ',')[0].Trim());
-                    }
+                    if (dohListStrings == null && dnsListStrings == null)
+                        Snackbar.MessageQueue.Enqueue(new TextBlock() {Text = @"获取列表内容失败，请检查互联网连接。"});
 
-                if (File.Exists($"{MainWindow.SetupBasePath}dns.list"))
-                    foreach (var item in File.ReadAllLines($"{MainWindow.SetupBasePath}dns.list"))
-                        SecondDNS.Items.Add(item.Split('*', ',')[0].Trim());
+                    if (File.Exists($"{MainWindow.SetupBasePath}doh.list"))
+                        foreach (var item in File.ReadAllLines($"{MainWindow.SetupBasePath}doh.list"))
+                        {
+                            DoHUrlText.Items.Add(item.Split('*', ',')[0].Trim());
+                            SecondDoHUrlText.Items.Add(item.Split('*', ',')[0].Trim());
+                        }
+
+                    if (File.Exists($"{MainWindow.SetupBasePath}dns.list"))
+                        foreach (var item in File.ReadAllLines($"{MainWindow.SetupBasePath}dns.list"))
+                            SecondDNS.Items.Add(item.Split('*', ',')[0].Trim());
+                }
+                catch (Exception exception)
+                {
+                    MyTools.BackgroundLog(@"| Read list failed : " + exception);
+                }
             };
             bgWorker.RunWorkerAsync();
         }
@@ -244,7 +232,7 @@ namespace AuroraGUI
             }
             catch (Exception exception)
             {
-                MyTools.BgwLog(exception.ToString());
+                MyTools.BackgroundLog(exception.ToString());
             }
         }
 
@@ -268,8 +256,19 @@ namespace AuroraGUI
 
         private void CleanCache_OnClick(object sender, RoutedEventArgs e)
         {
-            new Process {StartInfo = new ProcessStartInfo("ipconfig.exe", "/flushdns") }.Start();
-            Snackbar.MessageQueue.Enqueue(new TextBlock() { Text = @"已刷新系统 DNS 解析缓存" });
+            Snackbar.IsActive = true;
+            MemoryCache.Default.Trim(100);
+            var snackbarMsg = new SnackbarMessage()
+            {
+                Content = "已经刷新内置缓存！",
+                ActionContent = "刷新系统缓存"
+            };
+            snackbarMsg.ActionClick += (o, args) =>
+            {
+                new Process { StartInfo = new ProcessStartInfo("ipconfig.exe", "/flushdns") }.Start();
+                Snackbar.MessageQueue.Enqueue(new TextBlock() { Text = @"已刷新系统 DNS 解析缓存" });
+            };
+            Snackbar.Message = snackbarMsg;
         }
 
         private void ListL10N_OnClick(object sender, RoutedEventArgs e)
