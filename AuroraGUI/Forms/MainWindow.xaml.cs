@@ -160,10 +160,14 @@ namespace AuroraGUI
                 else
                     MessageBox.Show("找不到当前日志文件，或当前未产生日志文件。");
             });
-            WinFormMenuItem abootItem = new WinFormMenuItem("关于…", (sender, args) => new AboutWindow().ShowDialog());
+            WinFormMenuItem abootItem = new WinFormMenuItem("关于…", (sender, args) => new AboutWindow().Show());
             WinFormMenuItem updateItem = new WinFormMenuItem("检查更新…", (sender, args) => MyTools.CheckUpdate(GetType().Assembly.Location));
-            WinFormMenuItem settingsItem = new WinFormMenuItem("设置…", (sender, args) => new SettingsWindow().ShowDialog());
-            WinFormMenuItem exitItem = new WinFormMenuItem("退出", (sender, args) => Environment.Exit(Environment.ExitCode));
+            WinFormMenuItem settingsItem = new WinFormMenuItem("设置…", (sender, args) => new SettingsWindow().Show());
+            WinFormMenuItem exitItem = new WinFormMenuItem("退出", (sender, args) =>
+            {
+                Close();
+                Environment.Exit(Environment.ExitCode);
+            });
 
             NotifyIcon.ContextMenu =
                 new WinFormContextMenu(new[]
@@ -276,7 +280,7 @@ namespace AuroraGUI
                 var snackbarMsg = new SnackbarMessage()
                 {
                     Content = "权限不足",
-                    ActionContent = "Administrator权限运行",
+                    ActionContent = "管理员权限运行",
                 };
                 snackbarMsg.ActionClick += RunAsAdmin_OnActionClick;
                 Snackbar.MessageQueue.Enqueue(snackbarMsg);
@@ -392,6 +396,15 @@ namespace AuroraGUI
                 Show();
                 WindowState = WindowState.Normal;
             }
+        }
+
+        private void Window_Closed(object sender, EventArgs e)
+        {
+            if (!DnsSettings.AutoCleanLogEnable) return;
+            foreach (var item in Directory.GetFiles($"{SetupBasePath}Log"))
+                if (item != $"{SetupBasePath}Log" +
+                    $"\\{DateTime.Today.Year}{DateTime.Today.Month:00}{DateTime.Today.Day:00}.log")
+                    File.Delete(item);
         }
     }
 }

@@ -3,6 +3,8 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text.RegularExpressions;
 using System.Windows;
+using ARSoft.Tools.Net;
+using ARSoft.Tools.Net.Dns;
 using AuroraGUI.DnsSvr;
 using MojoUnity;
 
@@ -22,26 +24,29 @@ namespace AuroraGUI.Tools
 
         public static string GetLocIp()
         {
+            var addressUri = new Uri(DnsSettings.HttpsDnsUrl);
             try
             {
-                using (TcpClient tcpClient = new TcpClient())
-                {
-                    if (DnsSettings.HttpsDnsUrl.Split('/')[2].Contains(":"))
-                        tcpClient.Connect(DnsSettings.HttpsDnsUrl.Split('/', ':')[3],
-                            Convert.ToInt32(DnsSettings.HttpsDnsUrl.Split('/', ':')[4]));
-                    else
-                        tcpClient.Connect(DnsSettings.HttpsDnsUrl.Split('/')[2], 443);
-
-                    return ((IPEndPoint) tcpClient.Client.LocalEndPoint).Address.ToString();
-                }
+                TcpClient tcpClient = new TcpClient();
+                tcpClient.Connect(addressUri.DnsSafeHost, addressUri.Port);
+                return ((IPEndPoint) tcpClient.Client.LocalEndPoint).Address.ToString();
             }
             catch (Exception e)
             {
                 MyTools.BackgroundLog("Try Connect:" + e);
-                return MessageBox.Show(
-                           $"Error: 尝试连接远端 DNS over HTTPS 服务器发生错误(DoH-Server){Environment.NewLine}点击“确定”以重试连接,点击“取消”放弃连接使用预设地址。{Environment.NewLine}Original error: "
-                           + e.Message, @"错误", MessageBoxButton.OKCancel) == MessageBoxResult.OK
-                    ? GetLocIp() : "192.168.0.1";
+                try
+                {
+                    TcpClient tcpClient = new TcpClient();
+                    tcpClient.Connect(ResolveNameIpAddress(addressUri.DnsSafeHost), addressUri.Port);
+                    return ((IPEndPoint)tcpClient.Client.LocalEndPoint).Address.ToString();
+                }
+                catch (Exception exception)
+                {
+                    return MessageBox.Show(
+                               $"Error: 尝试连接远端 DNS over HTTPS 服务器发生错误(DoH-Server){Environment.NewLine}点击“确定”以重试连接,点击“取消”放弃连接使用预设地址。{Environment.NewLine}Original error: "
+                               + exception.Message, @"错误", MessageBoxButton.OKCancel) == MessageBoxResult.OK
+                        ? GetLocIp() : "192.168.0.1";
+                }
             }
         }
 
@@ -49,14 +54,39 @@ namespace AuroraGUI.Tools
         {
             try
             {
-                return new WebClient().DownloadString(UrlSettings.WhatMyIpApi).Trim();
+                return new MyCurl.MWebClient().DownloadString(UrlSettings.WhatMyIpApi).Trim();
             }
             catch (Exception e)
             {
                 MyTools.BackgroundLog("Try Connect:" + e);
-                return MessageBox.Show($"Error: 尝试获取公网IP地址失败(WhatMyIP-API){Environment.NewLine}点击“确定”以重试连接,点击“取消”放弃连接使用预设地址。{Environment.NewLine}Original error: "
-                                              + e.Message, @"错误", MessageBoxButton.OKCancel) == MessageBoxResult.OK
-                    ? GetIntIp() : IPAddress.Any.ToString();
+                try
+                {
+                    return new MyCurl.MIpBkWebClient().DownloadString(UrlSettings.WhatMyIpApi).Trim();
+                }
+                catch (Exception exception)
+                {
+                    MyTools.BackgroundLog("Try Connect:" + exception);
+                    return MessageBox.Show($"Error: 尝试获取公网IP地址失败(WhatMyIP-API){Environment.NewLine}点击“确定”以重试连接,点击“取消”放弃连接使用预设地址。{Environment.NewLine}Original error: "
+                                           + exception.Message, @"错误", MessageBoxButton.OKCancel) == MessageBoxResult.OK
+                        ? GetIntIp() : IPAddress.Any.ToString();
+                }
+            }
+        }
+
+        public static IPAddress ResolveNameIpAddress(string name)
+        {
+            if (IPAddress.TryParse(name.TrimEnd('.'), out _)) return IPAddress.Parse(name.TrimEnd('.'));
+            while (true)
+            {
+                var ipMsg = new DnsClient(DnsSettings.SecondDnsIp, 5000).Resolve(DomainName.Parse(name)).AnswerRecords[0];
+                if (ipMsg.RecordType == RecordType.A)
+                {
+                    if (ipMsg is ARecord msg) return msg.Address;
+                }
+                else if (ipMsg.RecordType == RecordType.CName)
+                {
+                    if (ipMsg is CNameRecord msg) name = msg.CanonicalName.ToString();
+                }
             }
         }
 

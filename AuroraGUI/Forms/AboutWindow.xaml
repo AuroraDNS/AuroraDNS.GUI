@@ -18,14 +18,14 @@
                 <ColumnDefinition Width="31*"/>
             </Grid.ColumnDefinitions>
             <Grid.Background>
-                <ImageBrush ImageSource="../Resources/cun.jpg" TileMode="FlipXY" Stretch="UniformToFill" />
+                <ImageBrush ImageSource="../Resources/nie.jpg" TileMode="FlipXY" Stretch="UniformToFill" />
             </Grid.Background>
             <Grid.Effect>
                 <DropShadowEffect Color="DarkGray"  ShadowDepth="1" Opacity="0.7" />
             </Grid.Effect>
         </Grid>
 
-        <TextBlock Text="Photo by Xuan - 無限藍天。" Margin="20,19,0,0" 
+        <TextBlock Text="Photo by Tinh Khuong" Margin="20,19,0,0" 
                VerticalAlignment="Top" Foreground="#FFFFFF"  FontSize="10" Opacity="0.9"
                HorizontalAlignment="Left" TextAlignment="Left" Height="17" />
 
@@ -86,7 +86,7 @@
             </Grid>
         </materialDesign:Card>
         <TextBlock Margin="0,302,5.6,0" 
-            VerticalAlignment="Top" Foreground="#BBB" Width="588" HorizontalAlignment="Center" TextAlignment="Center" Height="20">
+            VerticalAlignment="Top" Foreground="#CCC" Width="588" HorizontalAlignment="Center" TextAlignment="Center" Height="20">
             Made With ❤ By Milkey Tan. | <Hyperlink Click="Hyperlink_OnClick" NavigateUri="https://milione.cc/?page_id=880">支持我</Hyperlink>
         </TextBlock>
 

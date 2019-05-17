@@ -24,6 +24,24 @@ namespace AuroraGUI.Tools
             }
         }
 
+        public class MIpBkWebClient : WebClient
+        {
+            public bool AllowAutoRedirect { get; set; } = false;
+            public int TimeOut { get; set; } = 15000;
+            protected override WebRequest GetWebRequest(Uri address)
+            {
+                var ipAdd = IpTools.ResolveNameIpAddress(address.DnsSafeHost);
+                var mAdd = new Uri(address.Scheme + Uri.SchemeDelimiter + ipAdd + address.AbsolutePath);
+                var request = base.GetWebRequest(mAdd);
+                request.Timeout = TimeOut;
+                if (!(request is HttpWebRequest webRequest)) return request;
+                webRequest.Host = address.DnsSafeHost;
+                webRequest.AllowAutoRedirect = AllowAutoRedirect;
+                webRequest.KeepAlive = true;
+                return request;
+            }
+        }
+
         public class Http2Handler : WinHttpHandler
         {
             protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, System.Threading.CancellationToken cancellationToken)
