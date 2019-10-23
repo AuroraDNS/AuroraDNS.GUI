@@ -1,6 +1,6 @@
 
 <p align="center">
-          <a href='https://github.com/mili-tan/AuroraDNS.GUI'><img src='https://i.loli.net/2019/04/28/5cc502888c358.png' /></a>
+          <a href='https://github.com/mili-tan/AuroraDNS.GUI'><img src='https://i.loli.net/2019/06/10/5cfdb719df5f019195.png' width="50%" height="50%"/></a>
 </p>
 
 <p align="center">
@@ -37,9 +37,43 @@
 
 ![截图](https://i.loli.net/2019/04/16/5cb5275b6c232.jpg)
 
-![截图](https://i.loli.net/2019/04/16/5cb5279a4f30c.jpg)
+![截图](https://i.loli.net/2019/07/23/5d36ad44a0f3f65675.png)
 
 ------
+
+## 使用与测试
+使用前，请关闭同类软件以防端口冲突（如 DNSCrypt ）
+
+**普通用户指导**    
+> 如果您有命令行使用经验，请查看：高级用户指导  
+
+1. 打开本软件之后，打开左上角“启用DNS服务”开关  
+2. 打开下方最左侧“设为系统DNS”按钮
+3. 然后根据[此文章](https://jingyan.baidu.com/article/2fb0ba40833b0a00f2ec5f28.html)将第一个 DNS 设置为 `127.0.0.1`  第二栏设置为 `119.29.29.29`  
+
+**高级用户指导**  
+> 使用 CMD 命令  
+ - 使用本软件提供的本地 DNS 服务解析 `baidu.com`
+```cmd
+nslookup baidu.com 127.0.0.1
+```
+如果有解析，即代表本软件生效。如果无效，请先尝试排除一切可能情况之后再发送 Issue    
+然后只需检查 DNS 是否已设置为 `127.0.0.1`    
+
+ - 查看所有网卡的网络参数设置
+```cmd
+ipconfig /all
+```
+ **注意：** 使用的网卡 DNS 要设为 `127.0.0.1` 才能生效
+ 
+ 如果没有设置，请参考[此文章](https://jingyan.baidu.com/article/2fb0ba40833b0a00f2ec5f28.html) 将第一个 DNS 设置为 `127.0.0.1`    
+ 第二个 DNS 推荐设置为 `腾讯 119.29.29.29 或者运营商提供的 DNS`    
+ 如果已设置，只需要清空 DNS 缓存即可（点击本软件设置界面的“清空缓存”按钮 或者使用如下命令）     
+
+ - 清空 DNS 缓存
+```cmd
+ipconfig /flushdns
+```
 
 ## 反馈
 

@@ -4,6 +4,7 @@ using System.Linq;
 using System.Net;
 using System.Runtime.Caching;
 using System.Threading.Tasks;
+using System.Windows.Forms;
 using ARSoft.Tools.Net;
 using ARSoft.Tools.Net.Dns;
 using AuroraGUI.Tools;
@@ -50,11 +51,21 @@ namespace AuroraGUI.DnsSvr
                         DomainName.Parse(new Uri(DnsSettings.SecondHttpsDnsUrl).DnsSafeHost) == dnsQuestion.Name ||
                         DomainName.Parse(new Uri(UrlSettings.WhatMyIpApi).DnsSafeHost) == dnsQuestion.Name)
                     {
-                        response.AnswerRecords.AddRange(new DnsClient(DnsSettings.SecondDnsIp, 5000)
-                            .Resolve(dnsQuestion.Name, dnsQuestion.RecordType).AnswerRecords);
-
-                        if (DnsSettings.DebugLog)
-                            BackgroundLog($"| -- Startup SecondDns : {DnsSettings.SecondDnsIp}");
+                        if (!DnsSettings.StartupOverDoH)
+                        {
+                            response.AnswerRecords.AddRange(new DnsClient(DnsSettings.SecondDnsIp, 5000)
+                                .Resolve(dnsQuestion.Name, dnsQuestion.RecordType).AnswerRecords);
+                            if (DnsSettings.DebugLog)
+                                BackgroundLog($"| -- Startup SecondDns : {DnsSettings.SecondDnsIp}");
+                        }
+                        else
+                        {
+                            response.AnswerRecords.AddRange(ResolveOverHttpsByDnsJson(clientAddress.ToString(),
+                                dnsQuestion.Name.ToString(), "https://1.0.0.1/dns-query", DnsSettings.ProxyEnable,
+                                DnsSettings.WProxy, dnsQuestion.RecordType).list);
+                            if (DnsSettings.DebugLog)
+                                BackgroundLog("| -- Startup DoH : https://1.0.0.1/dns-query");
+                        }
                     }
                     else if (DnsSettings.DnsCacheEnable && MemoryCache.Default.Contains($"{dnsQuestion.Name}{dnsQuestion.RecordType}"))
                     {
@@ -162,7 +173,7 @@ namespace AuroraGUI.DnsSvr
             e.Response = response;
         }
 
-        private static (List<DnsRecordBase> list, ReturnCode statusCode) ResolveOverHttpsByDnsJson(string clientIpAddress,
+        public static (List<DnsRecordBase> list, ReturnCode statusCode) ResolveOverHttpsByDnsJson(string clientIpAddress,
             string domainName, string dohUrl,
             bool proxyEnable = false, IWebProxy wProxy = null, RecordType type = RecordType.A)
         {
@@ -173,7 +184,7 @@ namespace AuroraGUI.DnsSvr
             {
                 dnsStr = MyCurl.GetString(dohUrl + @"?ct=application/dns-json&" +
                                           $"name={domainName}&type={type.ToString().ToUpper()}&edns_client_subnet={clientIpAddress}",
-                    DnsSettings.Http2Enable, proxyEnable, wProxy);
+                    DnsSettings.Http2Enable, proxyEnable, wProxy, DnsSettings.AllowAutoRedirect);
             }
             catch (WebException e)
             {
@@ -181,12 +192,17 @@ namespace AuroraGUI.DnsSvr
                 try
                 {
                     BackgroundLog($@"| - Catch WebException : {Convert.ToInt32(response.StatusCode)} {response.StatusCode} | {domainName} | {response.ResponseUri}");
+                    if (DnsSettings.HTTPStatusNotify)
+                        MainWindow.NotifyIcon.ShowBalloonTip(360, "AuroraDNS - 错误",
+                            $"异常 :{Convert.ToInt32(response.StatusCode)} {response.StatusCode} {Environment.NewLine} {domainName}", ToolTipIcon.Warning);
+                    if (response.StatusCode == HttpStatusCode.BadRequest) DnsSettings.DnsMsgEnable = true;
                 }
                 catch (Exception exception)
                 {
                     BackgroundLog($@"| - Catch WebException : {exception.Message} | {domainName} | {dohUrl}");
-                    //MainWindow.NotifyIcon.ShowBalloonTip(360, "AuroraDNS - 错误",
-                    //    $"异常 : {exception.Message} {Environment.NewLine} {domainName}", ToolTipIcon.Warning);
+                    if (DnsSettings.HTTPStatusNotify)
+                        MainWindow.NotifyIcon.ShowBalloonTip(360, "AuroraDNS - 错误",
+                            $"异常 : {exception.Message} {Environment.NewLine} {domainName}", ToolTipIcon.Warning);
                 }
 
                 if (dohUrl != DnsSettings.HttpsDnsUrl) return (new List<DnsRecordBase>(), ReturnCode.ServerFailure);
@@ -214,7 +230,7 @@ namespace AuroraGUI.DnsSvr
 
                     switch (type)
                     {
-                        case RecordType.A when Convert.ToInt32(RecordType.A) == answerType:
+                        case RecordType.A when Convert.ToInt32(RecordType.A) == answerType && !DnsSettings.Ipv4Disable:
                         {
                             ARecord aRecord = new ARecord(
                                 DomainName.Parse(answerDomainName), ttl, IPAddress.Parse(answerAddr));
@@ -222,6 +238,7 @@ namespace AuroraGUI.DnsSvr
                             recordList.Add(aRecord);
                             break;
                         }
+
                         case RecordType.A:
                         {
                             if (Convert.ToInt32(RecordType.CName) == answerType)
@@ -237,13 +254,15 @@ namespace AuroraGUI.DnsSvr
 
                             break;
                         }
-                        case RecordType.Aaaa when Convert.ToInt32(RecordType.Aaaa) == answerType:
+
+                        case RecordType.Aaaa when Convert.ToInt32(RecordType.Aaaa) == answerType && !DnsSettings.Ipv6Disable:
                         {
                             AaaaRecord aaaaRecord = new AaaaRecord(
                                 DomainName.Parse(answerDomainName), ttl, IPAddress.Parse(answerAddr));
                             recordList.Add(aaaaRecord);
                             break;
                         }
+
                         case RecordType.Aaaa:
                         {
                             if (Convert.ToInt32(RecordType.CName) == answerType)
@@ -255,6 +274,7 @@ namespace AuroraGUI.DnsSvr
 
                             break;
                         }
+
                         case RecordType.CName when answerType == Convert.ToInt32(RecordType.CName):
                         {
                             CNameRecord cRecord = new CNameRecord(
@@ -262,6 +282,7 @@ namespace AuroraGUI.DnsSvr
                             recordList.Add(cRecord);
                             break;
                         }
+
                         case RecordType.Ns when answerType == Convert.ToInt32(RecordType.Ns):
                         {
                             NsRecord nsRecord = new NsRecord(
@@ -269,6 +290,7 @@ namespace AuroraGUI.DnsSvr
                             recordList.Add(nsRecord);
                             break;
                         }
+
                         case RecordType.Mx when answerType == Convert.ToInt32(RecordType.Mx):
                         {
                             MxRecord mxRecord = new MxRecord(
@@ -278,12 +300,14 @@ namespace AuroraGUI.DnsSvr
                             recordList.Add(mxRecord);
                             break;
                         }
+
                         case RecordType.Txt when answerType == Convert.ToInt32(RecordType.Txt):
                         {
                             TxtRecord txtRecord = new TxtRecord(DomainName.Parse(answerDomainName), ttl, answerAddr);
                             recordList.Add(txtRecord);
                             break;
                         }
+
                         case RecordType.Ptr when answerType == Convert.ToInt32(RecordType.Ptr):
                         {
                             PtrRecord ptrRecord = new PtrRecord(
@@ -291,6 +315,7 @@ namespace AuroraGUI.DnsSvr
                             recordList.Add(ptrRecord);
                             break;
                         }
+
                         default:
                             statusCode = Convert.ToInt32(ReturnCode.ServerFailure);
                             break;
@@ -301,7 +326,7 @@ namespace AuroraGUI.DnsSvr
             return (recordList, (ReturnCode) statusCode);
         }
 
-        private static (List<DnsRecordBase> list, ReturnCode statusCode) ResolveOverHttpsByDnsMsg(string clientIpAddress, string domainName, string dohUrl,
+        public static (List<DnsRecordBase> list, ReturnCode statusCode) ResolveOverHttpsByDnsMsg(string clientIpAddress, string domainName, string dohUrl,
             bool proxyEnable = false, IWebProxy wProxy = null, RecordType type = RecordType.A)
         {
             DnsMessage dnsMsg;
@@ -311,9 +336,18 @@ namespace AuroraGUI.DnsSvr
             try
             {
                 var dnsDataBytes = MyCurl.GetData(
-                    $"{dohUrl}?ct=application/dns-message&dns={dnsBase64String}&edns_client_subnet={clientIpAddress}",
-                    DnsSettings.Http2Enable, proxyEnable, wProxy);
+                    $"{dohUrl}?ct=application/dns-message&dns={dnsBase64String}",
+                    DnsSettings.Http2Enable, proxyEnable, wProxy, DnsSettings.AllowAutoRedirect);
                 dnsMsg = DnsMessage.Parse(dnsDataBytes);
+
+                if (DnsSettings.Ipv4Disable || DnsSettings.Ipv6Disable)
+                    foreach (var item in dnsMsg.AnswerRecords.ToArray())
+                    {
+                        if (item.RecordType == RecordType.A && DnsSettings.Ipv4Disable)
+                            dnsMsg.AnswerRecords.Remove(item);
+                        if (item.RecordType == RecordType.Aaaa && DnsSettings.Ipv6Disable)
+                            dnsMsg.AnswerRecords.Remove(item);
+                    }
             }
             catch (WebException e)
             {
@@ -322,13 +356,7 @@ namespace AuroraGUI.DnsSvr
                 {
                     BackgroundLog(
                         $@"| - Catch WebException : {Convert.ToInt32(response.StatusCode)} {response.StatusCode} | {domainName} | {dohUrl} | {dnsBase64String}");
-
-                    if (response.StatusCode == HttpStatusCode.BadRequest)
-                    {
-                        DnsSettings.DnsMsgEnable = false;
-                        return ResolveOverHttpsByDnsJson(clientIpAddress, domainName, DnsSettings.SecondHttpsDnsUrl,
-                            proxyEnable, wProxy, type);
-                    }
+                    if (response.StatusCode == HttpStatusCode.BadRequest) DnsSettings.DnsMsgEnable = false;
                 }
                 catch (Exception exception)
                 {
@@ -348,8 +376,9 @@ namespace AuroraGUI.DnsSvr
         {
             try
             {
-                string dnsStr = new WebClient().DownloadString(
-                    $"http://119.29.29.29/d?dn={domainName}&ttl=1");
+                string dnsStr = MyCurl.GetString($"http://119.29.29.29/d?dn={domainName}&ttl=1"
+                    , DnsSettings.Http2Enable, DnsSettings.ProxyEnable, DnsSettings.WProxy,
+                    DnsSettings.AllowAutoRedirect);
                 if (string.IsNullOrWhiteSpace(dnsStr))
                     return null;
 
@@ -362,7 +391,8 @@ namespace AuroraGUI.DnsSvr
             }
             catch (Exception e)
             {
-                BackgroundLog($@"| - Catch WebException : {e.Message} | {domainName} | http://119.29.29.29/d?dn={domainName}&ttl=1");
+                BackgroundLog(
+                    $@"| - Catch WebException : {e.Message} | {domainName} | http://119.29.29.29/d?dn={domainName}&ttl=1");
                 return new List<DnsRecordBase>();
             }
         }

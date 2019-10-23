@@ -31,6 +31,12 @@ namespace AuroraGUI.DnsSvr
         public static bool DnsCacheEnable = false;
         public static bool Http2Enable = false;
         public static bool AutoCleanLogEnable = false;
+        public static bool Ipv6Disable = false;
+        public static bool Ipv4Disable = false;
+        public static bool StartupOverDoH = false;
+        public static bool AllowSelfSignedCert = false;
+        public static bool AllowAutoRedirect = true;
+        public static bool HTTPStatusNotify = false;
         public static WebProxy WProxy = new WebProxy("127.0.0.1:1080");
 
         public static void ReadConfig(string path)
@@ -54,6 +60,19 @@ namespace AuroraGUI.DnsSvr
                 ListenPort = configJson.AsObjectGetInt("Port", 53);
             if (configStr.Contains("\"ChinaList\""))
                 ChinaListEnable = configJson.AsObjectGetBool("ChinaList");
+            if (configStr.Contains("\"StartupOverDoH\""))
+                StartupOverDoH = configJson.AsObjectGetBool("StartupOverDoH");
+            if (configStr.Contains("\"AllowSelfSignedCert\""))
+                AllowSelfSignedCert = configJson.AsObjectGetBool("AllowSelfSignedCert");
+            if (configStr.Contains("\"AllowAutoRedirect\""))
+                AllowAutoRedirect = configJson.AsObjectGetBool("AllowAutoRedirect");
+            if (configStr.Contains("\"HTTPStatusNotify\""))
+                HTTPStatusNotify = configJson.AsObjectGetBool("HTTPStatusNotify");
+
+            if (configStr.Contains("\"Ipv6Disable\""))
+                Ipv6Disable = configJson.AsObjectGetBool("Ipv6Disable");
+            if (configStr.Contains("\"Ipv4Disable\""))
+                Ipv4Disable = configJson.AsObjectGetBool("Ipv4Disable");
 
             ListenIp = IPAddress.Parse(configJson.AsObjectGetString("Listen"));
             BlackListEnable = configJson.AsObjectGetBool("BlackList");
@@ -136,7 +155,6 @@ namespace AuroraGUI.DnsSvr
                     ReadWhiteListWeb(item);
             }
         }
-
     }
 
     class UrlSettings

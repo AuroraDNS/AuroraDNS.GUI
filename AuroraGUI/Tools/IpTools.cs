@@ -78,14 +78,24 @@ namespace AuroraGUI.Tools
             if (IPAddress.TryParse(name.TrimEnd('.'), out _)) return IPAddress.Parse(name.TrimEnd('.'));
             while (true)
             {
-                var ipMsg = new DnsClient(DnsSettings.SecondDnsIp, 5000).Resolve(DomainName.Parse(name)).AnswerRecords[0];
-                if (ipMsg.RecordType == RecordType.A)
+                try
                 {
-                    if (ipMsg is ARecord msg) return msg.Address;
+                    DnsRecordBase ipMsg;
+                    if (DnsSettings.StartupOverDoH)
+                        ipMsg = QueryResolve.ResolveOverHttpsByDnsJson(IPAddress.Any.ToString(),
+                            name, "https://1.0.0.1/dns-query", DnsSettings.ProxyEnable, DnsSettings.WProxy).list[0];
+                    else
+                        ipMsg = new DnsClient(DnsSettings.SecondDnsIp, 5000).Resolve(DomainName.Parse(name))
+                            .AnswerRecords[0];
+
+                    if (ipMsg.RecordType == RecordType.A && ipMsg is ARecord msg1)
+                        return msg1.Address;
+                    if (ipMsg.RecordType == RecordType.CName)
+                        if (ipMsg is CNameRecord msg) name = msg.CanonicalName.ToString();
                 }
-                else if (ipMsg.RecordType == RecordType.CName)
+                catch (Exception e)
                 {
-                    if (ipMsg is CNameRecord msg) name = msg.CanonicalName.ToString();
+                    MyTools.BackgroundLog(e.ToString());
                 }
             }
         }
@@ -106,7 +116,7 @@ namespace AuroraGUI.Tools
                 else if (locStr.Contains("\"countryCode\""))
                     countryCode = json.AsObjectGetString("countryCode");
                 else
-                    countryCode = "Unknown";
+                    countryCode = "";
 
                 if (locStr.Contains("\"organization\""))
                     organization = json.AsObjectGetString("organization");
@@ -116,6 +126,18 @@ namespace AuroraGUI.Tools
                     organization = json.AsObjectGetString("org");
                 else
                     organization = "";
+
+                if (!organization.ToUpper().Contains("AS") && locStr.Contains("\"asn\""))
+                {
+                    try
+                    {
+                        organization = $"AS{json.AsObjectGetInt("asn")} {organization}";
+                    }
+                    catch
+                    {
+                        organization = $"AS{json.AsObjectGetString("asn")} {organization}";
+                    }
+                }
 
                 if (onlyCountryCode) return countryCode;
                 return countryCode + " " + organization;
