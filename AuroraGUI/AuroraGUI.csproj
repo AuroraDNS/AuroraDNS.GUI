@@ -205,9 +205,7 @@
     <Compile Include="Forms\SpeedWindow.xaml.cs">
       <DependentUpon>SpeedWindow.xaml</DependentUpon>
     </Compile>
-    <Compile Include="OhMyDns\MyDnsHeader.cs" />
-    <Compile Include="OhMyDns\MyDnsQuestion.cs" />
-    <Compile Include="OhMyDns\MyDnsSend.cs" />
+    <Compile Include="Tools\DNSEncoder.cs" />
     <Compile Include="Tools\Lnk.cs" />
     <Compile Include="Tools\MojoUnityJson.cs" />
     <Compile Include="Tools\MyCurl.cs" />
@@ -301,7 +299,7 @@
     <Resource Include="Resources\nightly.png" />
   </ItemGroup>
   <ItemGroup>
-    <Resource Include="Resources\wid.jpg" />
+    <Resource Include="Resources\sta.jpg" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Import Project="..\packages\NETStandard.Library.2.0.3\build\netstandard2.0\NETStandard.Library.targets" Condition="Exists('..\packages\NETStandard.Library.2.0.3\build\netstandard2.0\NETStandard.Library.targets')" />

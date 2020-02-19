@@ -128,7 +128,7 @@ namespace AuroraGUI
             {
                 MessageBox.Show($"Error: 尝试读取配置文件错误{Environment.NewLine}Original error: {e}");
             }
-
+            
             ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12 | SecurityProtocolType.Tls11;
             if (DnsSettings.AllowSelfSignedCert)
                 ServicePointManager.ServerCertificateValidationCallback +=
@@ -160,7 +160,12 @@ namespace AuroraGUI
                 worker.DoWork += (sender, args) =>
                 {
                     LocIPAddr = IPAddress.Parse(IpTools.GetLocIp());
-                    if (!Equals(DnsSettings.EDnsIp, IPAddress.Loopback)) IntIPAddr = IPAddress.Parse(IpTools.GetIntIp());
+                    if (!(Equals(DnsSettings.EDnsIp, IPAddress.Any) && DnsSettings.EDnsCustomize))
+                    {
+                        IntIPAddr = IPAddress.Parse(IpTools.GetIntIp());
+                        var local = IpTools.GeoIpLocal(IntIPAddr.ToString());
+                        Dispatcher?.Invoke(() => { TitleTextItem.Header = $"{IntIPAddr}{Environment.NewLine}{local}"; });
+                    }
 
                     try
                     {
@@ -238,8 +243,6 @@ namespace AuroraGUI
             NotifyIcon.DoubleClick += MinimizedNormal;
 
             IsSysDns.IsChecked = MyTools.IsNslookupLocDns();
-            if (IsSysDns.IsChecked == true)
-                IsSysDns.ToolTip = "已设为系统 DNS";
         }
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
@@ -302,6 +305,12 @@ namespace AuroraGUI
                 Equals(DnsSettings.ListenIp, IPAddress.IPv6Loopback))
                 new TcpFwder(Equals(DnsSettings.ListenIp, IPAddress.IPv6Any) ? IPAddress.Any : IPAddress.Loopback, 53,
                     IPAddress.IPv6Loopback, 53).Run();
+
+            IsLog.ToolTip = IsLog.IsChecked == true ? "记录日志 : 是" : "记录日志 : 否";
+            if (IsSysDns.IsChecked == true) IsSysDns.ToolTip = "已设为系统 DNS";
+            if (Equals(DnsSettings.ListenIp, IPAddress.Any)) IsGlobal.ToolTip = "当前监听 : 局域网";
+            else if (Equals(DnsSettings.ListenIp, IPAddress.Loopback)) IsGlobal.ToolTip = "当前监听 : 本地";
+            else IsGlobal.ToolTip = "当前监听 : " + DnsSettings.ListenIp;
         }
 
         private void IsGlobal_Checked(object sender, RoutedEventArgs e)
@@ -311,8 +320,9 @@ namespace AuroraGUI
                 MDnsSvrWorker.Dispose();
                 MDnsServer = new DnsServer(new IPEndPoint(IPAddress.Any, DnsSettings.ListenPort), 10, 10);
                 MDnsServer.QueryReceived += QueryResolve.ServerOnQueryReceived;
-                Snackbar.MessageQueue.Enqueue(new TextBlock() {Text = "监听地址: 局域网 " + IPAddress.Any});
+                Snackbar.MessageQueue.Enqueue(new TextBlock {Text = "监听地址 : 局域网 " + IPAddress.Any});
                 MDnsSvrWorker.RunWorkerAsync();
+                IsGlobal.ToolTip = "当前监听 : 局域网";
             }
         }
 
@@ -323,8 +333,9 @@ namespace AuroraGUI
                 MDnsSvrWorker.Dispose();
                 MDnsServer = new DnsServer(new IPEndPoint(IPAddress.Loopback, DnsSettings.ListenPort), 10, 10);
                 MDnsServer.QueryReceived += QueryResolve.ServerOnQueryReceived;
-                Snackbar.MessageQueue.Enqueue(new TextBlock() {Text = "监听地址: 本地 " + IPAddress.Loopback});
+                Snackbar.MessageQueue.Enqueue(new TextBlock {Text = "监听地址 : 本地 " + IPAddress.Loopback});
                 MDnsSvrWorker.RunWorkerAsync();
+                IsGlobal.ToolTip = "当前监听 : 本地";
             }
         }
 
@@ -332,14 +343,16 @@ namespace AuroraGUI
         {
             DnsSettings.DebugLog = true;
             if (MyTools.PortIsUse(DnsSettings.ListenPort))
-                Snackbar.MessageQueue.Enqueue(new TextBlock() {Text = "记录日志:是"});
+                Snackbar.MessageQueue.Enqueue(new TextBlock {Text = "记录日志 : 是" });
+            IsLog.ToolTip = "记录日志 : 是";
         }
 
         private void IsLog_Unchecked(object sender, RoutedEventArgs e)
         {
             DnsSettings.DebugLog = false;
             if (MyTools.PortIsUse(DnsSettings.ListenPort))
-                Snackbar.MessageQueue.Enqueue(new TextBlock() {Text = "记录日志:否"});
+                Snackbar.MessageQueue.Enqueue(new TextBlock {Text = "记录日志 : 否" });
+            IsLog.ToolTip = "记录日志 : 否";
         }
 
         private void DnsEnable_Checked(object sender, RoutedEventArgs e)
@@ -369,6 +382,8 @@ namespace AuroraGUI
             {
                 IsLog.IsChecked = DnsSettings.DebugLog;
                 IsGlobal.IsChecked = Equals(DnsSettings.ListenIp, IPAddress.Any);
+                //IsLog.ToolTip = IsLog.IsChecked.Value ? "记录日志 : 是" : "记录日志 : 否";
+                //IsGlobal.ToolTip = Equals(DnsSettings.ListenIp, IPAddress.Any) ? "当前监听 : 局域网" : "当前监听 : 本地";
             };
             settingsWindow.Show();
         }
@@ -414,7 +429,7 @@ namespace AuroraGUI
             Storyboard.SetTargetProperty(fadeInAnimation, new PropertyPath(OpacityProperty));
             fadeInStoryboard.Children.Add(fadeInAnimation);
 
-            Dispatcher.BeginInvoke(new Action(fadeInStoryboard.Begin), DispatcherPriority.Render, null);
+            Dispatcher?.BeginInvoke(new Action(fadeInStoryboard.Begin), DispatcherPriority.Render, null);
         }
 
         private void MinimizedNormal(object sender, EventArgs e)
@@ -467,9 +482,9 @@ namespace AuroraGUI
 
                     Snackbar.MessageQueue.Enqueue(new TextBlock
                     {
-                        Text = "主DNS:" + IPAddress.Loopback +
+                        Text = "主DNS : " + IPAddress.Loopback +
                                Environment.NewLine +
-                               "辅DNS:" + DnsSettings.SecondDnsIp
+                               "辅DNS : " + DnsSettings.SecondDnsIp
                     });
 
                     IsSysDns.ToolTip = "已设为系统 DNS";
